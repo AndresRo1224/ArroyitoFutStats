@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, RefreshCw } from "lucide-react";
+import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff } from "lucide-react";
 import { C, ROTULO, SOMBRA } from "./tema";
 import { FotoCtx, Boton, Rotulo } from "./components/ui";
 import { calcularTabla, filaVacia, uid } from "./lib/util";
@@ -14,6 +14,7 @@ import FichaJugador from "./screens/FichaJugador";
 import SubirFoto from "./screens/SubirFoto";
 import PedirPin from "./screens/PedirPin";
 import MostrarPin from "./screens/MostrarPin";
+import Ajustes from "./screens/Ajustes";
 
 const PESTANAS = [
   { id: "tabla", label: "Tabla", icono: Trophy },
@@ -39,12 +40,17 @@ export default function App() {
   const [aviso, setAviso] = useState("");
   const [enLinea, setEnLinea] = useState(null); // null = sin nube, true/false = estado
   const [sincronizando, setSincronizando] = useState(false);
-  const [adminNecesario, setAdminNecesario] = useState(false); // el servidor exige PIN
+  const [adminNecesario, setAdminNecesario] = useState(false); // el grupo tiene PIN
+  const [esAdmin, setEsAdmin] = useState(false);               // este teléfono está autorizado
   const [pedirPin, setPedirPin] = useState(null); // { titulo, texto, accion }
   const [pinNuevo, setPinNuevo] = useState(null); // { nombre, pin } recién generado
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
+  // Solo se empuja a la nube lo que se cambió DESDE ESTE teléfono. Sin esto, al
+  // cargar los datos del servidor se reenviaban de vuelta, y un visitante sin
+  // permiso recibía un aviso de PIN incorrecto (y podía pisar los datos del grupo).
+  const hayCambios = useRef(false);
 
   const refrescarNube = async (silencioso = true) => {
     if (!nube.nubeActiva()) { setEnLinea(null); return; }
@@ -83,18 +89,36 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ¿El servidor exige PIN para tocar la nómina y los partidos?
-  useEffect(() => {
-    if (!nube.nubeActiva()) return;
-    nube.adminRequerido()
-      .then((r) => setAdminNecesario(!!(r && r.requerido)))
-      .catch(() => {});
-  }, []);
+  // ¿El grupo tiene PIN? ¿Y este teléfono sigue autorizado?
+  const revisarAdmin = async () => {
+    if (!nube.nubeActiva()) { setAdminNecesario(false); setEsAdmin(true); return; }
+    try {
+      const r = await nube.adminRequerido();
+      const necesario = !!(r && r.configurado);
+      setAdminNecesario(necesario);
+      if (!necesario) return setEsAdmin(true); // grupo abierto: todos pueden editar
+      const guardado = nube.adminPin();
+      if (!guardado) return setEsAdmin(false);
+      try {
+        await nube.verificarAdmin(guardado);
+        setEsAdmin(true);
+      } catch {
+        nube.fijarAdminPin(""); // el PIN guardado ya no sirve
+        setEsAdmin(false);
+      }
+    } catch { /* sin conexión: se decide al intentar guardar */ }
+  };
+
+  useEffect(() => { revisarAdmin(); }, []);
+
+  const puedeEditar = !adminNecesario || esAdmin;
+
+  const ejecutar = (accion) => { hayCambios.current = true; accion(); };
 
   // Ejecuta una acción que modifica la nómina o los partidos. Si el grupo tiene
-  // PIN y este teléfono todavía no lo ha puesto, lo pide antes de continuar.
+  // PIN y este teléfono no está autorizado, lo pide antes de continuar.
   const conPermiso = (titulo, accion) => {
-    if (!adminNecesario || nube.adminPin()) return accion();
+    if (puedeEditar) return ejecutar(accion);
     setPedirPin({
       titulo,
       accion,
@@ -102,30 +126,45 @@ export default function App() {
     });
   };
 
+  const desbloquearAdmin = () =>
+    setPedirPin({
+      titulo: "Modo administrador",
+      texto: "Ingresa el PIN del grupo para poder editar la nómina y los partidos.",
+      accion: () => {},
+      soloDesbloquear: true,
+    });
+
+  const bloquearAdmin = () => {
+    nube.fijarAdminPin("");
+    setEsAdmin(false);
+    setAviso("Saliste del modo administrador.");
+  };
+
   // Guardar datos: cache local siempre + empuje a la nube (con pequeño retardo).
   useEffect(() => {
     if (!cargado) return;
     if (primeraCarga.current) { primeraCarga.current = false; return; }
     const t = setTimeout(() => {
-      guardarJSON(K_DATOS, { jugadores, partidos, grupo });
-      if (nube.nubeActiva()) {
-        nube.guardarDatos({ jugadores, partidos, grupo })
-          .then(() => setEnLinea(true))
-          .catch((e) => {
-            setEnLinea(false);
-            // Si el PIN guardado dejó de servir, se olvida para volver a pedirlo.
-            if (/PIN/i.test(e.message)) {
-              nube.fijarAdminPin("");
-              setAdminNecesario(true);
-              setAviso("El PIN del grupo es incorrecto o cambió. Te lo pediré de nuevo.");
-            } else {
-              setAviso(e.message);
-            }
-          });
-      }
+      guardarJSON(K_DATOS, { jugadores, partidos, grupo }); // el cache local siempre
+      // A la nube solo van los cambios hechos aquí, y solo si hay permiso.
+      // Un visitante nunca escribe ni recibe avisos que no le corresponden.
+      if (!nube.nubeActiva() || !hayCambios.current || !puedeEditar) return;
+      nube.guardarDatos({ jugadores, partidos, grupo })
+        .then(() => { hayCambios.current = false; setEnLinea(true); })
+        .catch((e) => {
+          setEnLinea(false);
+          if (/PIN/i.test(e.message)) {
+            nube.fijarAdminPin("");
+            setEsAdmin(false);
+            setAdminNecesario(true);
+            setAviso("El PIN del grupo cambió. Vuelve a ingresarlo en Ajustes.");
+          } else {
+            setAviso(e.message);
+          }
+        });
     }, 700);
     return () => clearTimeout(t);
-  }, [jugadores, partidos, grupo, cargado]);
+  }, [jugadores, partidos, grupo, cargado, puedeEditar]);
 
   // Las fotos solo se cachean local; a la nube van una por una (con PIN).
   useEffect(() => {
@@ -314,9 +353,11 @@ export default function App() {
             onConfirmar={async (pin) => {
               await nube.verificarAdmin(pin); // lanza Error si es incorrecto
               nube.fijarAdminPin(pin);
-              const accion = pedirPin.accion;
+              setEsAdmin(true);
+              const { accion, soloDesbloquear } = pedirPin;
               setPedirPin(null);
-              accion();
+              if (soloDesbloquear) return setAviso("Modo administrador activado.");
+              ejecutar(accion);
             }}
           />
         )}
@@ -359,9 +400,14 @@ export default function App() {
         {ajustes && (
           <Ajustes
             grupo={grupo}
-            setGrupo={setGrupo}
+            setGrupo={(v) => { hayCambios.current = true; setGrupo(v); }}
             enLinea={enLinea}
             sincronizando={sincronizando}
+            adminNecesario={adminNecesario}
+            esAdmin={esAdmin}
+            desbloquear={() => { setAjustes(false); desbloquearAdmin(); }}
+            bloquear={bloquearAdmin}
+            trasCambiarPin={revisarAdmin}
             refrescar={() => refrescarNube(false)}
             cerrar={() => setAjustes(false)}
             exportar={() => descargarRespaldo({ jugadores, partidos, grupo, fotos })}
@@ -421,141 +467,3 @@ export default function App() {
   );
 }
 
-// Panel de ajustes, incluida la configuración de la nube.
-function Ajustes({ grupo, setGrupo, enLinea, sincronizando, refrescar, cerrar, exportar, importar, borrarTodo, avisar }) {
-  const [url, setUrl] = useState(nube.baseGuardada());
-  const [probando, setProbando] = useState(false);
-  const [configurado, setConfigurado] = useState(null); // ¿ya hay PIN de grupo?
-  const [pinActual, setPinActual] = useState("");
-  const [pinNuevoAdmin, setPinNuevoAdmin] = useState("");
-  const [guardandoPin, setGuardandoPin] = useState(false);
-
-  useEffect(() => {
-    if (!nube.nubeActiva()) return;
-    nube.adminRequerido()
-      .then((r) => setConfigurado(!!(r && r.configurado)))
-      .catch(() => {});
-  }, []);
-
-  const guardarConexion = () => {
-    nube.fijarBaseNube(url);
-    avisar("Conexión guardada. Sincronizando…");
-    refrescar();
-    cerrar();
-  };
-
-  const guardarPinGrupo = async () => {
-    if (pinNuevoAdmin.trim().length < 4) return avisar("El PIN debe tener al menos 4 dígitos.");
-    setGuardandoPin(true);
-    try {
-      await nube.definirAdmin(pinNuevoAdmin.trim(), pinActual.trim());
-      nube.fijarAdminPin(pinNuevoAdmin.trim()); // este teléfono queda autorizado
-      setConfigurado(true);
-      setPinActual(""); setPinNuevoAdmin("");
-      avisar("PIN del grupo guardado.");
-    } catch (e) {
-      avisar(e.message);
-    } finally {
-      setGuardandoPin(false);
-    }
-  };
-
-  const probar = async () => {
-    nube.fijarBaseNube(url);
-    setProbando(true);
-    try {
-      await nube.probarConexion();
-      avisar("¡Conexión correcta con la nube!");
-    } catch (e) {
-      avisar("Falló la conexión: " + e.message);
-    } finally {
-      setProbando(false);
-    }
-  };
-
-  const campo = { background: C.tarjeta2, color: C.tinta, border: `1px solid ${C.linea}` };
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end" style={{ background: "rgba(15,27,45,0.55)" }} onClick={cerrar}>
-      <div
-        className="w-full rounded-t-3xl p-5 overflow-y-auto"
-        style={{ background: C.fondo, maxWidth: 448, margin: "0 auto", maxHeight: "90vh", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="font-extrabold text-lg mb-4" style={{ color: C.tinta }}>Ajustes</div>
-
-        <Rotulo>Nombre del grupo</Rotulo>
-        <input value={grupo} onChange={(e) => setGrupo(e.target.value)} className="w-full mt-2 rounded-xl px-3 py-3 text-sm outline-none" style={campo} />
-
-        <div className="mt-5 flex items-center justify-between">
-          <Rotulo>Conexión con la nube</Rotulo>
-          {sincronizando && <RefreshCw size={13} color={C.primario} className="animate-spin" />}
-        </div>
-        <div className="text-xs mt-1 mb-2" style={{ color: C.humo }}>
-          Pega la URL de tu proyecto en Vercel para que todo el grupo comparta tabla y fotos.
-          Déjalo vacío para usar la app solo en este teléfono.
-        </div>
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://tu-proyecto.vercel.app"
-          className="w-full rounded-xl px-3 py-3 text-sm outline-none"
-          style={campo}
-        />
-        <div className="flex gap-2 mt-2">
-          <div className="flex-1"><Boton ancho tono="fantasma" onClick={probar} disabled={probando}>{probando ? "Probando…" : "Probar conexión"}</Boton></div>
-          <div className="flex-1"><Boton ancho onClick={guardarConexion}>Guardar</Boton></div>
-        </div>
-
-        <div className="mt-5"><Rotulo>PIN del grupo</Rotulo></div>
-        <div className="text-xs mt-1 mb-2" style={{ color: C.humo }}>
-          Protege la nómina y los partidos: solo quien lo sepa puede agregar jugadores o
-          registrar partidos. {configurado === true
-            ? "Ya hay uno definido."
-            : configurado === false
-              ? "Todavía no hay ninguno: cualquiera puede editar."
-              : ""}
-        </div>
-        {configurado && (
-          <input
-            value={pinActual}
-            onChange={(e) => setPinActual(e.target.value.replace(/\D/g, "").slice(0, 12))}
-            inputMode="numeric"
-            placeholder="PIN actual"
-            className="w-full rounded-xl px-3 py-3 text-sm outline-none"
-            style={campo}
-          />
-        )}
-        <input
-          value={pinNuevoAdmin}
-          onChange={(e) => setPinNuevoAdmin(e.target.value.replace(/\D/g, "").slice(0, 12))}
-          inputMode="numeric"
-          placeholder={configurado ? "PIN nuevo" : "Elige un PIN (mínimo 4 dígitos)"}
-          className={`w-full rounded-xl px-3 py-3 text-sm outline-none ${configurado ? "mt-2" : ""}`}
-          style={campo}
-        />
-        <div className="mt-2">
-          <Boton ancho tono="suave" onClick={guardarPinGrupo} disabled={guardandoPin}>
-            {guardandoPin ? "Guardando…" : configurado ? "Cambiar PIN del grupo" : "Definir PIN del grupo"}
-          </Boton>
-        </div>
-
-        <div className="mt-5"><Rotulo>Respaldo</Rotulo></div>
-        <div className="text-xs mt-1" style={{ color: C.humo }}>
-          Guarda una copia de todo (incluidas las fotos) en un archivo. Útil aunque uses la nube.
-        </div>
-        <div className="flex gap-2 mt-3">
-          <div className="flex-1"><Boton ancho tono="suave" onClick={exportar}>Exportar</Boton></div>
-          <div className="flex-1"><Boton ancho tono="fantasma" onClick={importar}>Importar</Boton></div>
-        </div>
-
-        <div className="mt-5 space-y-2">
-          <Boton ancho onClick={cerrar}>Listo</Boton>
-          <button onClick={borrarTodo} className="w-full py-3 text-sm font-bold active:opacity-60" style={{ color: C.alerta }}>
-            Borrar todos los datos
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

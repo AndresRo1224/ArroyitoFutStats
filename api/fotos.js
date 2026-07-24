@@ -6,10 +6,10 @@
 // la foto de otro subiéndola primero: si no tienes el PIN que te dio el admin,
 // no puedes subir nada a nombre de esa persona.
 
-import { getDb, cors, leerBody, verificarPin, conLimite } from "./_db.js";
+import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, esTexto, LIM, auditar } from "./_db.js";
 
 export default async function handler(req, res) {
-  cors(res);
+  cors(req, res);
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -25,8 +25,11 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       const { jugadorId, data, pin } = leerBody(req);
-      if (!jugadorId || !data || !pin) {
-        return res.status(400).json({ error: "Faltan datos, foto o PIN." });
+      if (!idValido(jugadorId) || !pinValido(pin)) {
+        return res.status(400).json({ error: "Datos inválidos." });
+      }
+      if (!esTexto(data, LIM.foto) || !/^data:image\//.test(data)) {
+        return res.status(400).json({ error: "La foto no es válida o es demasiado grande." });
       }
 
       const registro = await db.collection("pines").findOne({ _id: jugadorId });
@@ -44,6 +47,7 @@ export default async function handler(req, res) {
         { $set: { data, actualizado: new Date() } },
         { upsert: true }
       );
+      await auditar(db, "foto", req, { jugadorId });
       return res.status(200).json({ ok: true });
     }
 

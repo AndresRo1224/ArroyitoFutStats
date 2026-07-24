@@ -24,13 +24,30 @@ export async function getDb() {
   return cliente.db(process.env.MONGODB_DB || "canchita");
 }
 
-// CORS abierto: la app corre desde el WebView de Android (origen capacitor://),
-// así que necesita poder llamar a la API desde cualquier origen. Las escrituras
-// están protegidas por PIN + límite de intentos (ver más abajo).
-export function cors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+// CORS restringido. La app nativa (APK) ignora CORS; esto protege a los usuarios
+// en navegador: solo se permite la propia app (Vercel), localhost y los orígenes
+// de Capacitor/Ionic. Otros sitios web no pueden hacer peticiones con credenciales.
+function origenPermitido(origen) {
+  if (!origen) return true; // apps nativas / curl no mandan Origin
+  return (
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origen) ||
+    /^https?:\/\/localhost(:\d+)?$/i.test(origen) ||
+    /^(capacitor|ionic):\/\/localhost$/i.test(origen)
+  );
+}
+
+export function cors(req, res) {
+  const origen = req.headers.origin;
+  if (origenPermitido(origen)) {
+    res.setHeader("Access-Control-Allow-Origin", origen || "*");
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-pin");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-pin, Authorization");
+  // Cabeceras de seguridad para las respuestas de la API.
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cache-Control", "no-store");
 }
 
 // Vercel normalmente ya entrega req.body parseado; si llega como texto, lo parseamos.
@@ -46,6 +63,116 @@ export function clienteIp(req) {
   const xff = req.headers["x-forwarded-for"];
   if (xff) return String(xff).split(",")[0].trim();
   return (req.socket && req.socket.remoteAddress) || "desconocido";
+}
+
+// --- Validación de entradas (anti inyección NoSQL) ---
+// La regla de oro: nada que venga del cliente y se use en un filtro de Mongo puede
+// ser un objeto (p. ej. {"$ne":null}); solo strings con forma esperada.
+export const esTexto = (v, max = 400) => typeof v === "string" && v.length > 0 && v.length <= max;
+export const idValido = (v) => typeof v === "string" && /^[A-Za-z0-9:_-]{1,64}$/.test(v);
+export const pinValido = (v) => typeof v === "string" && /^[0-9]{4,12}$/.test(v);
+export const fechaValida = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+// Fuerza a string un parámetro de query (Vercel puede entregar arreglos).
+export const qStr = (v) => (Array.isArray(v) ? v[0] : v) || "";
+
+// Límites de tamaño para no inflar la base ni permitir DoS.
+export const LIM = {
+  foto: 400 * 1024,     // ~400 KB de dataURL (la app comprime a ~15 KB)
+  nombre: 60,
+  jugadores: 300,
+  partidos: 2000,
+  banner: 32,
+};
+
+// Saneo estructural de los datos del grupo: reconstruye solo con campos y tipos
+// permitidos, descartando cualquier objeto/operador malicioso o basura.
+export function sanearDatos(body) {
+  const nJug = (n) => (typeof n === "string" ? n.slice(0, LIM.nombre) : "");
+  const jugadores = (Array.isArray(body.jugadores) ? body.jugadores : [])
+    .slice(0, LIM.jugadores)
+    .filter((j) => j && idValido(j.id) && esTexto(j.nombre, LIM.nombre))
+    .map((j) => ({ id: j.id, nombre: nJug(j.nombre) }));
+
+  const numMap = (o) => {
+    const out = {};
+    if (o && typeof o === "object" && !Array.isArray(o)) {
+      for (const k of Object.keys(o)) {
+        if (idValido(k) && Number.isFinite(o[k])) out[k] = Math.max(0, Math.min(99, Math.trunc(o[k])));
+      }
+    }
+    return out;
+  };
+  const partidos = (Array.isArray(body.partidos) ? body.partidos : [])
+    .slice(0, LIM.partidos)
+    .filter((p) => p && idValido(p.id) && fechaValida(p.fecha) && Array.isArray(p.att))
+    .map((p) => ({
+      id: p.id,
+      fecha: p.fecha,
+      att: p.att.filter(idValido).slice(0, LIM.jugadores),
+      g: numMap(p.g),
+      a: numMap(p.a),
+      creado: Number.isFinite(p.creado) ? p.creado : Date.now(),
+    }));
+
+  const grupo = esTexto(body.grupo, LIM.nombre) ? body.grupo.slice(0, LIM.nombre) : "ArroyitoFutStats";
+  return { grupo, jugadores, partidos };
+}
+
+// --- Sesiones: token firmado (HMAC-SHA256), sin dependencias externas ---
+function claveFirma() {
+  return process.env.SESSION_SECRET ||
+    crypto.createHash("sha256").update("arroyito:" + (process.env.MONGODB_URI || "sin-uri")).digest("hex");
+}
+const b64url = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64urlJson = (o) => b64url(JSON.stringify(o));
+
+export function firmarToken(payload, segundos = 12 * 3600) {
+  const cuerpo = { ...payload, exp: Math.floor(Date.now() / 1000) + segundos };
+  const h = b64urlJson({ alg: "HS256", typ: "JWT" });
+  const b = b64urlJson(cuerpo);
+  const firma = b64url(crypto.createHmac("sha256", claveFirma()).update(`${h}.${b}`).digest());
+  return `${h}.${b}.${firma}`;
+}
+
+export function verificarToken(token) {
+  if (typeof token !== "string" || token.split(".").length !== 3) return null;
+  const [h, b, s] = token.split(".");
+  const esperado = b64url(crypto.createHmac("sha256", claveFirma()).update(`${h}.${b}`).digest());
+  const a = Buffer.from(s), c = Buffer.from(esperado);
+  if (a.length !== c.length || !crypto.timingSafeEqual(a, c)) return null;
+  let payload;
+  try { payload = JSON.parse(Buffer.from(b.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()); }
+  catch { return null; }
+  if (!payload.exp || payload.exp * 1000 < Date.now()) return null;
+  return payload;
+}
+
+export function tokenDe(req) {
+  const a = req.headers["authorization"] || "";
+  return a.startsWith("Bearer ") ? a.slice(7) : "";
+}
+
+// ¿La petición está autorizada como admin por token o por llave maestra?
+// (El PIN por cabecera se maneja aparte, con rate-limit, en cada endpoint.)
+export function adminPorTokenOMaestra(req) {
+  const p = verificarToken(tokenDe(req));
+  if (p && p.rol === "admin") return true;
+  if (esMaestra(req.headers["x-admin-pin"])) return true;
+  return false;
+}
+
+// Registro de auditoría de escrituras (para forense). Se autolimpia con TTL.
+export async function auditar(db, accion, req, detalle) {
+  try {
+    await db.collection("auditoria").insertOne({
+      accion,
+      ip: clienteIp(req),
+      detalle: detalle || null,
+      fecha: new Date(),
+      expira: new Date(Date.now() + 90 * 24 * 3600 * 1000),
+    });
+  } catch { /* la auditoría nunca debe romper la operación */ }
 }
 
 // --- PIN: siempre como hash scrypt "salt:hash", nunca en claro ---

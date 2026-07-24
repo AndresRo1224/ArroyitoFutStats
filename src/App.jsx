@@ -78,7 +78,7 @@ export default function App() {
       // Estado del administrador (viene en la misma llamada).
       const necesario = !!(t.admin && t.admin.configurado);
       setAdminNecesario(necesario);
-      setEsAdmin(!necesario || !!nube.adminPin());
+      setEsAdmin(!necesario || nube.adminAutorizado());
       guardarJSON(K_DATOS, { jugadores: d.jugadores || [], partidos: d.partidos || [], grupo: d.grupo || grupo });
       guardarJSON(K_FOTOS, f);
       guardarJSON(K_BANNERS, b);
@@ -119,7 +119,7 @@ export default function App() {
       const r = await nube.adminRequerido();
       const necesario = !!(r && r.configurado);
       setAdminNecesario(necesario);
-      setEsAdmin(!necesario || !!nube.adminPin());
+      setEsAdmin(!necesario || nube.adminAutorizado());
     } catch { /* sin conexión: se decide al intentar guardar */ }
   };
 
@@ -147,7 +147,7 @@ export default function App() {
     });
 
   const bloquearAdmin = () => {
-    nube.fijarAdminPin("");
+    nube.salirAdmin();
     setEsAdmin(false);
     setAviso("Saliste del modo administrador.");
   };
@@ -165,11 +165,11 @@ export default function App() {
         .then(() => { hayCambios.current = false; setEnLinea(true); })
         .catch((e) => {
           setEnLinea(false);
-          if (/PIN/i.test(e.message)) {
-            nube.fijarAdminPin("");
+          if (/no autorizado|PIN/i.test(e.message)) {
+            nube.salirAdmin();
             setEsAdmin(false);
             setAdminNecesario(true);
-            setAviso("El PIN del grupo cambió. Vuelve a ingresarlo en Ajustes.");
+            setAviso("Tu sesión de administrador venció. Vuelve a ingresar el PIN en Ajustes.");
           } else {
             setAviso(e.message);
           }
@@ -402,8 +402,7 @@ export default function App() {
             texto={pedirPin.texto}
             onCerrar={() => setPedirPin(null)}
             onConfirmar={async (pin) => {
-              await nube.verificarAdmin(pin); // lanza Error si es incorrecto
-              nube.fijarAdminPin(pin);
+              await nube.verificarAdmin(pin); // lanza Error si falla; guarda el token
               setEsAdmin(true);
               const { accion, soloDesbloquear } = pedirPin;
               setPedirPin(null);

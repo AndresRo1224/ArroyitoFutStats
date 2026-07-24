@@ -9,13 +9,15 @@ import * as nube from "../lib/nube";
 // A quien no tenga PIN, o lo tenga generado en otro dispositivo, se le puede
 // generar uno nuevo desde aquí.
 export default function ListaPines({ jugadores, grupo, cerrar, avisar }) {
-  const [vistos, setVistos] = useState(nube.pinesRecordados());
+  // Los PIN generados se guardan SOLO en memoria (nunca en el navegador). Al cerrar
+  // o recargar se pierden: por eso hay que repartirlos en el momento, o regenerarlos.
+  const [vistos, setVistos] = useState({});
   const [conPin, setConPin] = useState(null); // ids que ya tienen PIN en la nube
   const [copiado, setCopiado] = useState(false);
   const [generando, setGenerando] = useState(null); // id en curso, o "faltantes"
 
   useEffect(() => {
-    if (!nube.nubeActiva()) { setConPin(Object.keys(nube.pinesRecordados())); return; }
+    if (!nube.nubeActiva()) { setConPin([]); return; }
     nube.quienesTienenPin()
       .then((r) => setConPin(r.conPin || []))
       .catch(() => setConPin(null));
@@ -59,8 +61,8 @@ export default function ListaPines({ jugadores, grupo, cerrar, avisar }) {
   const generarUno = async (j) => {
     setGenerando(j.id);
     try {
-      await nube.generarPin(j.id);
-      setVistos(nube.pinesRecordados());
+      const pin = await nube.generarPin(j.id);
+      setVistos((v) => ({ ...v, [j.id]: pin }));
       setConPin((c) => (c && c.includes(j.id) ? c : [...(c || []), j.id]));
     } catch (e) {
       avisar("No se pudo generar: " + e.message);
@@ -72,10 +74,11 @@ export default function ListaPines({ jugadores, grupo, cerrar, avisar }) {
   const generarFaltantes = async () => {
     setGenerando("faltantes");
     let fallos = 0;
+    const nuevos = {};
     for (const j of faltantes) {
-      try { await nube.generarPin(j.id); } catch { fallos++; }
+      try { nuevos[j.id] = await nube.generarPin(j.id); } catch { fallos++; }
     }
-    setVistos(nube.pinesRecordados());
+    setVistos((v) => ({ ...v, ...nuevos }));
     try {
       const r = await nube.quienesTienenPin();
       setConPin(r.conPin || []);
@@ -202,9 +205,9 @@ export default function ListaPines({ jugadores, grupo, cerrar, avisar }) {
             )}
 
             <div className="text-xs mt-5" style={{ color: C.humo }}>
-              Estos PIN quedan anotados solo en este teléfono. En el servidor se guardan
-              cifrados y no se pueden consultar: si cambias de teléfono, tendrás que
-              generarlos de nuevo.
+              Por seguridad, estos PIN solo se ven aquí mientras no cierres la pantalla: en el
+              servidor se guardan cifrados y no se pueden consultar. Repártelos ahora; si los
+              necesitas después, vuelve a generarlos.
             </div>
           </>
         )}

@@ -60,8 +60,7 @@ export default function Ajustes({
     if (pinNuevo.trim().length < 4) return avisar("El PIN debe tener al menos 4 dígitos.");
     setGuardando(true);
     try {
-      await nube.definirAdmin(pinNuevo.trim(), pinActual.trim());
-      nube.fijarAdminPin(pinNuevo.trim()); // este teléfono queda autorizado
+      await nube.definirAdmin(pinNuevo.trim(), pinActual.trim()); // guarda el token de sesión
       setPinActual(""); setPinNuevo("");
       await trasCambiarPin();
       avisar(adminNecesario ? "PIN del grupo cambiado." : "PIN del grupo definido.");

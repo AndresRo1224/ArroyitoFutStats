@@ -6,7 +6,7 @@
 // GET  /api/votos?partidoId=xxx   → lo mismo, solo ese partido
 // POST /api/votos { partidoId, votanteId, pin, votadoId }
 
-import { getDb, cors, leerBody, verificarPin, conLimite } from "./_db.js";
+import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, qStr } from "./_db.js";
 
 const VOTACION_MS = 24 * 60 * 60 * 1000;
 
@@ -21,7 +21,7 @@ function agrupar(docs) {
 }
 
 export default async function handler(req, res) {
-  cors(res);
+  cors(req, res);
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -29,16 +29,16 @@ export default async function handler(req, res) {
     const col = db.collection("votos");
 
     if (req.method === "GET") {
-      const partidoId = req.query && req.query.partidoId;
-      const filtro = partidoId ? { partidoId } : {};
+      const partidoId = qStr(req.query && req.query.partidoId);
+      const filtro = idValido(partidoId) ? { partidoId } : {};
       const docs = await col.find(filtro).toArray();
       return res.status(200).json(agrupar(docs));
     }
 
     if (req.method === "POST") {
       const { partidoId, votanteId, pin, votadoId } = leerBody(req);
-      if (!partidoId || !votanteId || !pin || !votadoId) {
-        return res.status(400).json({ error: "Faltan datos para votar." });
+      if (!idValido(partidoId) || !idValido(votanteId) || !idValido(votadoId) || !pinValido(pin)) {
+        return res.status(400).json({ error: "Datos inválidos para votar." });
       }
       if (votanteId === votadoId) {
         return res.status(400).json({ error: "No puedes votar por ti mismo." });

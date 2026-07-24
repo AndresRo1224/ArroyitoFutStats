@@ -5,12 +5,12 @@
 // de entorno ADMIN_PIN en Vercel, las escrituras exigen la cabecera x-admin-pin.
 // Si no la defines, cualquiera con la app puede editar (modo abierto).
 
-import { getDb, cors, leerBody, revisarAdmin, conLimite, esMaestra } from "./_db.js";
+import { getDb, cors, leerBody, revisarAdmin, conLimite, adminPorTokenOMaestra, sanearDatos, auditar } from "./_db.js";
 
 const VACIO = { grupo: "ArroyitoFutStats", jugadores: [], partidos: [] };
 
 export default async function handler(req, res) {
-  cors(res);
+  cors(req, res);
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -29,20 +29,21 @@ export default async function handler(req, res) {
 
     if (req.method === "PUT") {
       const yaHay = (await revisarAdmin(db, "")).configurado;
-      if (yaHay && !esMaestra(req.headers["x-admin-pin"])) {
+      // Autorizado por token de sesión o llave maestra; si no, PIN por cabecera
+      // (con límite de intentos, por compatibilidad).
+      if (yaHay && !adminPorTokenOMaestra(req)) {
         const r = await conLimite(db, req, "admin", async () => (await revisarAdmin(db, req.headers["x-admin-pin"])).ok);
         if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
-        if (!r.ok) return res.status(401).json({ error: "PIN de administrador incorrecto." });
+        if (!r.ok) return res.status(401).json({ error: "No autorizado." });
       }
-      const { grupo, jugadores, partidos } = leerBody(req);
-      if (!Array.isArray(jugadores) || !Array.isArray(partidos)) {
-        return res.status(400).json({ error: "Faltan jugadores o partidos." });
-      }
+      // Saneo estricto: reconstruye los datos solo con campos y tipos permitidos.
+      const datos = sanearDatos(leerBody(req));
       await col.updateOne(
         { _id: "principal" },
-        { $set: { grupo: grupo || VACIO.grupo, jugadores, partidos, actualizado: new Date() } },
+        { $set: { ...datos, actualizado: new Date() } },
         { upsert: true }
       );
+      await auditar(db, "datos", req, { jugadores: datos.jugadores.length, partidos: datos.partidos.length });
       return res.status(200).json({ ok: true });
     }
 

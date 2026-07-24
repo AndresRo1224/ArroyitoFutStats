@@ -4,10 +4,10 @@
 // GET  /api/banners → { [jugadorId]: "idDiseño" }
 // POST /api/banners { jugadorId, banner, pin }
 
-import { getDb, cors, leerBody, verificarPin, conLimite } from "./_db.js";
+import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, esTexto, LIM, auditar } from "./_db.js";
 
 export default async function handler(req, res) {
-  cors(res);
+  cors(req, res);
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -23,8 +23,8 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       const { jugadorId, banner, pin } = leerBody(req);
-      if (!jugadorId || !banner || !pin) {
-        return res.status(400).json({ error: "Faltan datos, banner o PIN." });
+      if (!idValido(jugadorId) || !pinValido(pin) || !esTexto(banner, LIM.banner) || !/^[a-z]+$/.test(banner)) {
+        return res.status(400).json({ error: "Datos inválidos." });
       }
       const registro = await db.collection("pines").findOne({ _id: jugadorId });
       if (!registro || !registro.pinHash) {
@@ -38,6 +38,7 @@ export default async function handler(req, res) {
         { $set: { banner, actualizado: new Date() } },
         { upsert: true }
       );
+      await auditar(db, "banner", req, { jugadorId, banner });
       return res.status(200).json({ ok: true });
     }
 

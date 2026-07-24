@@ -8,10 +8,10 @@
 // Verificar y cambiar el PIN pasa por el límite de intentos: es la superficie más
 // sensible, así que un atacante no puede adivinarlo por fuerza bruta.
 
-import { getDb, cors, leerBody, hashPin, revisarAdmin, conLimite, esMaestra } from "./_db.js";
+import { getDb, cors, leerBody, hashPin, revisarAdmin, conLimite, esMaestra, firmarToken, pinValido, auditar } from "./_db.js";
 
 export default async function handler(req, res) {
-  cors(res);
+  cors(req, res);
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -24,21 +24,24 @@ export default async function handler(req, res) {
       return res.status(200).json({ configurado, requerido: configurado });
     }
 
+    // Al acertar el PIN se entrega un token de sesión firmado (12h). La app guarda
+    // el token, NO el PIN: así no queda el PIN en texto plano en el navegador.
     if (req.method === "POST") {
       const { pin } = leerBody(req);
       const estado = await revisarAdmin(db, ""); // ¿está configurado?
-      if (!estado.configurado) return res.status(200).json({ ok: true, configurado: false });
-      if (esMaestra(pin)) return res.status(200).json({ ok: true, configurado: true });
+      if (!estado.configurado) return res.status(200).json({ ok: true, configurado: false, token: firmarToken({ rol: "admin" }) });
+      if (esMaestra(pin)) return res.status(200).json({ ok: true, configurado: true, token: firmarToken({ rol: "admin" }) });
       const r = await conLimite(db, req, "admin", async () => (await revisarAdmin(db, pin)).ok);
       if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
       if (!r.ok) return res.status(401).json({ error: "PIN incorrecto." });
-      return res.status(200).json({ ok: true, configurado: true });
+      await auditar(db, "admin-login", req, null);
+      return res.status(200).json({ ok: true, configurado: true, token: firmarToken({ rol: "admin" }) });
     }
 
     if (req.method === "PUT") {
       const { pinNuevo, pinActual } = leerBody(req);
-      if (!pinNuevo || String(pinNuevo).length < 4) {
-        return res.status(400).json({ error: "El PIN debe tener al menos 4 dígitos." });
+      if (!pinValido(pinNuevo)) {
+        return res.status(400).json({ error: "El PIN debe tener entre 4 y 12 dígitos." });
       }
       const yaHay = (await revisarAdmin(db, "")).configurado;
       if (yaHay && !esMaestra(pinActual)) {
@@ -51,7 +54,8 @@ export default async function handler(req, res) {
         { $set: { pinHash: hashPin(pinNuevo), actualizado: new Date() } },
         { upsert: true }
       );
-      return res.status(200).json({ ok: true });
+      await auditar(db, "admin-pin-cambiado", req, null);
+      return res.status(200).json({ ok: true, token: firmarToken({ rol: "admin" }) });
     }
 
     return res.status(405).json({ error: "Método no permitido." });

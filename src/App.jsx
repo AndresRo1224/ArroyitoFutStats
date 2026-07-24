@@ -12,6 +12,7 @@ import Ruleta from "./screens/Ruleta";
 import EditorPartido from "./screens/EditorPartido";
 import FichaJugador from "./screens/FichaJugador";
 import SubirFoto from "./screens/SubirFoto";
+import PedirPin from "./screens/PedirPin";
 
 const PESTANAS = [
   { id: "tabla", label: "Tabla", icono: Trophy },
@@ -37,6 +38,8 @@ export default function App() {
   const [aviso, setAviso] = useState("");
   const [enLinea, setEnLinea] = useState(null); // null = sin nube, true/false = estado
   const [sincronizando, setSincronizando] = useState(false);
+  const [adminNecesario, setAdminNecesario] = useState(false); // el servidor exige PIN
+  const [pedirPin, setPedirPin] = useState(null); // { titulo, texto, accion }
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
@@ -78,6 +81,25 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ¿El servidor exige PIN para tocar la nómina y los partidos?
+  useEffect(() => {
+    if (!nube.nubeActiva()) return;
+    nube.adminRequerido()
+      .then((r) => setAdminNecesario(!!(r && r.requerido)))
+      .catch(() => {});
+  }, []);
+
+  // Ejecuta una acción que modifica la nómina o los partidos. Si el grupo tiene
+  // PIN y este teléfono todavía no lo ha puesto, lo pide antes de continuar.
+  const conPermiso = (titulo, accion) => {
+    if (!adminNecesario || nube.adminPin()) return accion();
+    setPedirPin({
+      titulo,
+      accion,
+      texto: "Este grupo está protegido: solo quien conozca el PIN puede cambiar la nómina o los partidos.",
+    });
+  };
+
   // Guardar datos: cache local siempre + empuje a la nube (con pequeño retardo).
   useEffect(() => {
     if (!cargado) return;
@@ -87,7 +109,17 @@ export default function App() {
       if (nube.nubeActiva()) {
         nube.guardarDatos({ jugadores, partidos, grupo })
           .then(() => setEnLinea(true))
-          .catch((e) => { setEnLinea(false); setAviso(e.message); });
+          .catch((e) => {
+            setEnLinea(false);
+            // Si el PIN guardado dejó de servir, se olvida para volver a pedirlo.
+            if (/PIN/i.test(e.message)) {
+              nube.fijarAdminPin("");
+              setAdminNecesario(true);
+              setAviso("El PIN del grupo es incorrecto o cambió. Te lo pediré de nuevo.");
+            } else {
+              setAviso(e.message);
+            }
+          });
       }
     }, 700);
     return () => clearTimeout(t);
@@ -110,17 +142,19 @@ export default function App() {
     setFotos((f) => ({ ...f, [id]: data }));
   };
 
-  const guardarPartido = (p) => {
-    setPartidos((ps) => ordenarPartidos([...ps.filter((x) => x.id !== p.id), p]));
-    setEditor(null);
-  };
+  const guardarPartido = (p) =>
+    conPermiso("Guardar partido", () => {
+      setPartidos((ps) => ordenarPartidos([...ps.filter((x) => x.id !== p.id), p]));
+      setEditor(null);
+    });
 
-  const borrarJugador = (id) => {
-    setJugadores((js) => js.filter((j) => j.id !== id));
-    setFotos((f) => { const c = { ...f }; delete c[id]; return c; });
-    setFicha(null);
-    setConfirmar(null);
-  };
+  const borrarJugador = (id) =>
+    conPermiso("Sacar de la nómina", () => {
+      setJugadores((js) => js.filter((j) => j.id !== id));
+      setFotos((f) => { const c = { ...f }; delete c[id]; return c; });
+      setFicha(null);
+      setConfirmar(null);
+    });
 
   const importar = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -198,7 +232,11 @@ export default function App() {
                 tabla={tabla}
                 abrirJugador={setFicha}
                 pedirFoto={setSubir}
-                agregar={(n) => setJugadores((js) => [...js, { id: uid(), nombre: n }])}
+                agregar={(n) =>
+                  conPermiso("Agregar a la nómina", () =>
+                    setJugadores((js) => [...js, { id: uid(), nombre: n }])
+                  )
+                }
               />
             ) : tab === "partidos" ? (
               <Partidos
@@ -242,6 +280,21 @@ export default function App() {
           />
         )}
 
+        {pedirPin && (
+          <PedirPin
+            titulo={pedirPin.titulo}
+            texto={pedirPin.texto}
+            onCerrar={() => setPedirPin(null)}
+            onConfirmar={async (pin) => {
+              await nube.verificarAdmin(pin); // lanza Error si es incorrecto
+              nube.fijarAdminPin(pin);
+              const accion = pedirPin.accion;
+              setPedirPin(null);
+              accion();
+            }}
+          />
+        )}
+
         {editor && (
           <EditorPartido
             inicial={editor.p}
@@ -249,10 +302,12 @@ export default function App() {
             ultimoPartido={ultimoPartido}
             guardar={guardarPartido}
             cerrar={() => setEditor(null)}
-            borrar={() => {
-              setPartidos((ps) => ps.filter((x) => x.id !== editor.p.id));
-              setEditor(null);
-            }}
+            borrar={() =>
+              conPermiso("Borrar partido", () => {
+                setPartidos((ps) => ps.filter((x) => x.id !== editor.p.id));
+                setEditor(null);
+              })
+            }
           />
         )}
 
@@ -263,7 +318,13 @@ export default function App() {
             partidos={partidos}
             cerrar={() => setFicha(null)}
             pedirFoto={setSubir}
-            renombrar={(n) => setJugadores((js) => js.map((j) => (j.id === ficha ? { ...j, nombre: n } : j)))}
+            renombrar={(n) => {
+              const actual = jugadores.find((j) => j.id === ficha);
+              if (!actual || actual.nombre === n) return; // sin cambios: no molestar con el PIN
+              conPermiso("Cambiar el nombre", () =>
+                setJugadores((js) => js.map((j) => (j.id === ficha ? { ...j, nombre: n } : j)))
+              );
+            }}
             eliminar={() => setConfirmar({ tipo: "jugador", id: ficha })}
           />
         )}
@@ -301,8 +362,10 @@ export default function App() {
                 <button
                   onClick={() => {
                     if (confirmar.tipo === "todo") {
-                      setJugadores([]); setPartidos([]); setFotos({});
-                      setConfirmar(null); setAjustes(false); setTab("tabla");
+                      conPermiso("Borrar todos los datos", () => {
+                        setJugadores([]); setPartidos([]); setFotos({});
+                        setConfirmar(null); setAjustes(false); setTab("tabla");
+                      });
                     } else {
                       borrarJugador(confirmar.id);
                     }

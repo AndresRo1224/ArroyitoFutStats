@@ -62,8 +62,16 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
   o del override que el usuario guarda en Ajustes (`localStorage "canchita:api"`).
 - **Cada jugador sube su propia foto con un PIN.** La primera vez fija el PIN; para cambiarla
   después hay que reenviar ese mismo PIN (verificado en el servidor). Ver `POST /api/fotos`.
-- Guardar `datos` puede protegerse con `ADMIN_PIN` (variable de entorno en Vercel); el cliente
-  lo manda en la cabecera `x-admin-pin` (`localStorage "canchita:admin"`).
+- **Nómina y partidos se protegen con `ADMIN_PIN`** (variable de entorno en Vercel). Hay dos
+  capas: el servidor rechaza `PUT /api/datos` sin la cabecera `x-admin-pin` correcta, y la app
+  pide el PIN con el modal `PedirPin` antes de agregar/borrar/renombrar jugadores, guardar o
+  borrar partidos y borrar todo (`conPermiso()` en `App.jsx`). El PIN acertado se recuerda en
+  `localStorage "canchita:admin"` y no se vuelve a pedir en ese teléfono; si el servidor lo
+  rechaza después, se borra y se vuelve a pedir.
+- `GET /api/admin` dice si hay PIN configurado; `POST /api/admin {pin}` lo verifica. Si
+  `ADMIN_PIN` no está definida, la nómina queda abierta y la app no pregunta nada.
+- Ojo con la diferencia: el **PIN de administrador** es uno solo para el grupo y cuida la
+  nómina/partidos; los **PIN de las fotos** son uno por jugador y cuida su propia foto.
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.
 - Variables de entorno del backend: `MONGODB_URI` (obligatoria), `MONGODB_DB` (opc., default

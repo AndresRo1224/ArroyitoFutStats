@@ -49,6 +49,13 @@ export const guardarDatos = (datos) =>
 
 export const probarConexion = () => pedir("/api/ping");
 
+// ¿El servidor exige PIN de administrador para editar nómina y partidos?
+export const adminRequerido = () => pedir("/api/admin");
+
+// Comprueba un PIN de administrador. Lanza Error si es incorrecto.
+export const verificarAdmin = (pin) =>
+  pedir("/api/admin", { method: "POST", body: JSON.stringify({ pin }) });
+
 // Sube (o cambia) la foto de un jugador. En la nube exige el PIN en el servidor;
 // en modo local se verifica contra un PIN guardado en el teléfono (anti-bromas).
 // Lanza un Error si el PIN no coincide.

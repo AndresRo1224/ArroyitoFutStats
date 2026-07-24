@@ -41,12 +41,13 @@ export default function ElegirBanner({ jugador, actual, onGuardar, onCerrar }) {
     }
   };
 
+  // El fondo NO cierra el modal (ver nota en SubirFoto: clic fantasma de Android al
+  // volver del selector de archivos). Se cierra con la X.
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center" style={{ background: "rgba(15,27,45,0.55)" }} onClick={onCerrar}>
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center" style={{ background: "rgba(15,27,45,0.55)" }}>
       <div
         className="w-full rounded-t-3xl sm:rounded-3xl p-5"
         style={{ background: C.fondo, maxWidth: 448, boxShadow: SOMBRA_ALTA, paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">

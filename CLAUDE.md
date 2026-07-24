@@ -37,6 +37,8 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     att: ["ab12cd3", ...],        // quiénes asistieron
     g: { ab12cd3: 2 },            // goles por jugador
     a: { ab12cd3: 1 },            // asistencias por jugador
+    at: { ab12cd3: 0 },           // atajadas por jugador (arqueros)
+    creado: 1690000000000,        // ms; abre la ventana de votación del MVP (24h)
   }]
 }
 
@@ -54,9 +56,9 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
   - Los **trofeos son calculados** (`calcularTrofeos` en util), históricos: títulos actuales
     (goleador, asistidor, mejor nota, más constante, rey del MVP) + MVP acumulado por partido.
     La pantalla `Vitrina` (5º tab) y la ficha los muestran.
-- **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a)` en
-  `src/lib/util.js` da la nota de un partido: `6.0 + 0.8·goles + 0.5·asistencias`, con tope
-  10. `calcularTabla` promedia esas notas partido a partido (el tope se aplica a cada
+- **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a, at)` en
+  `src/lib/util.js` da la nota de un partido: `6.0 + 0.8·goles + 0.5·asistencias + 0.1·atajadas`,
+  con tope 10. `calcularTabla` promedia esas notas partido a partido (el tope se aplica a cada
   partido, no a los totales). Es lo que la UI muestra como **NOTA** y lo que usa la ruleta
   para "repartir parejo".
 - Las fotos van aparte porque son pesadas; se comprimen a 240×240 JPEG antes de guardar.

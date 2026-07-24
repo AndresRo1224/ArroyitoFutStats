@@ -120,6 +120,7 @@ export function sanearDatos(body) {
       att: p.att.filter(idValido).slice(0, LIM.jugadores),
       g: numMap(p.g),
       a: numMap(p.a),
+      at: numMap(p.at), // atajadas
       creado: Number.isFinite(p.creado) ? p.creado : Date.now(),
     }));
 

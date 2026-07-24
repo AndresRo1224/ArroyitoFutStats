@@ -106,15 +106,18 @@ export default function FichaJugador({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-3">
+        <div className="grid grid-cols-4 gap-2 mt-3">
           <div className="rounded-2xl py-4" style={tarjeta}>
-            <Marcador valor={stats.pj} etiqueta="Partidos" grande />
+            <Marcador valor={stats.pj} etiqueta="Partidos" />
           </div>
           <div className="rounded-2xl py-4" style={tarjeta}>
-            <Marcador valor={stats.goles} etiqueta="Goles" color={C.oro} grande />
+            <Marcador valor={stats.goles} etiqueta="Goles" color={C.oro} />
           </div>
           <div className="rounded-2xl py-4" style={tarjeta}>
-            <Marcador valor={stats.asis} etiqueta="Asist." color={PETOS[1].hex} grande />
+            <Marcador valor={stats.asis} etiqueta="Asist." color={PETOS[1].hex} />
+          </div>
+          <div className="rounded-2xl py-4" style={tarjeta}>
+            <Marcador valor={stats.atajadas} etiqueta="Atajadas" color={PETOS[5].hex} />
           </div>
         </div>
 
@@ -159,18 +162,21 @@ export default function FichaJugador({
                 className="flex items-center px-3 py-2.5"
                 style={{ borderBottom: i < suyos.length - 1 ? `1px solid ${C.linea}` : "none" }}
               >
-                <div className="flex-1 text-sm capitalize" style={{ color: C.tinta }}>{fechaCorta(p.fecha)}</div>
-                <div style={{ ...NUM, color: C.oro, fontSize: 13, fontWeight: 700, width: 42, textAlign: "right" }}>
-                  {(p.g && p.g[jugador.id]) || 0} G
+                <div className="flex-1 text-sm capitalize truncate" style={{ color: C.tinta }}>{fechaCorta(p.fecha)}</div>
+                <div style={{ ...NUM, color: C.oro, fontSize: 13, fontWeight: 700, width: 34, textAlign: "right" }}>
+                  {(p.g && p.g[jugador.id]) || 0}G
                 </div>
-                <div style={{ ...NUM, color: PETOS[1].hex, fontSize: 13, fontWeight: 700, width: 42, textAlign: "right" }}>
-                  {(p.a && p.a[jugador.id]) || 0} A
+                <div style={{ ...NUM, color: PETOS[1].hex, fontSize: 13, fontWeight: 700, width: 34, textAlign: "right" }}>
+                  {(p.a && p.a[jugador.id]) || 0}A
+                </div>
+                <div style={{ ...NUM, color: PETOS[5].hex, fontSize: 13, fontWeight: 700, width: 40, textAlign: "right" }}>
+                  {(p.at && p.at[jugador.id]) || 0}AT
                 </div>
                 <div
                   className="rounded-lg px-2 py-0.5 ml-2"
                   style={{ ...NUM, background: `${C.primario}18`, color: C.primarioOsc, fontSize: 12, fontWeight: 800, minWidth: 38, textAlign: "center" }}
                 >
-                  {dec1(notaPartido((p.g && p.g[jugador.id]) || 0, (p.a && p.a[jugador.id]) || 0))}
+                  {dec1(notaPartido((p.g && p.g[jugador.id]) || 0, (p.a && p.a[jugador.id]) || 0, (p.at && p.at[jugador.id]) || 0))}
                 </div>
               </div>
             ))

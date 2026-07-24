@@ -156,8 +156,8 @@ export default function Tabla({ jugadores, partidos, tabla, abrirJugador, irA })
       </div>
 
       <div className="px-4 pt-2 text-xs" style={{ color: C.humo }}>
-        NOTA = calificación sobre 10. Se parte de 6.0 por jugar y sube con cada gol (+0.8) y
-        cada asistencia (+0.5), con tope de 10 por partido.
+        NOTA = calificación sobre 10. Se parte de 6.0 por jugar y sube con cada gol (+0.8),
+        asistencia (+0.5) y atajada (+0.1), con tope de 10 por partido.
       </div>
     </div>
   );

@@ -40,10 +40,11 @@ export const dec1 = (x) => (Math.round(x * 10) / 10).toFixed(1);
 export const NOTA_BASE = 6;
 export const NOTA_GOL = 0.8;
 export const NOTA_ASIS = 0.5;
+export const NOTA_ATAJADA = 0.1; // cada atajada suma 0.1 a la nota (para arqueros)
 export const NOTA_MAX = 10;
 
-export const notaPartido = (goles = 0, asis = 0) =>
-  Math.min(NOTA_MAX, NOTA_BASE + NOTA_GOL * goles + NOTA_ASIS * asis);
+export const notaPartido = (goles = 0, asis = 0, atajadas = 0) =>
+  Math.min(NOTA_MAX, NOTA_BASE + NOTA_GOL * goles + NOTA_ASIS * asis + NOTA_ATAJADA * atajadas);
 
 // Las fotos se recortan a un cuadrado chico: 30 jugadores caben de sobra
 // en el almacenamiento del teléfono.
@@ -101,17 +102,19 @@ export function comprimirBanner(file, ancho = 800, alto = 280, calidad = 0.72) {
 export function calcularTabla(jugadores, partidos) {
   const base = {};
   jugadores.forEach((j) => {
-    base[j.id] = { id: j.id, nombre: j.nombre, pj: 0, goles: 0, asis: 0, sumaNotas: 0 };
+    base[j.id] = { id: j.id, nombre: j.nombre, pj: 0, goles: 0, asis: 0, atajadas: 0, sumaNotas: 0 };
   });
   partidos.forEach((p) =>
     p.att.forEach((id) => {
       if (!base[id]) return; // jugador borrado de la nómina
       const g = (p.g && p.g[id]) || 0;
       const a = (p.a && p.a[id]) || 0;
+      const at = (p.at && p.at[id]) || 0;
       base[id].pj += 1;
       base[id].goles += g;
       base[id].asis += a;
-      base[id].sumaNotas += notaPartido(g, a);
+      base[id].atajadas += at;
+      base[id].sumaNotas += notaPartido(g, a, at);
     })
   );
   return Object.values(base).map((t) => ({
@@ -125,7 +128,7 @@ export function calcularTabla(jugadores, partidos) {
 }
 
 export const filaVacia = {
-  pj: 0, goles: 0, asis: 0, sumaNotas: 0, promGoles: 0, promAsis: 0, prom: 0, nota: 0, presencia: 0,
+  pj: 0, goles: 0, asis: 0, atajadas: 0, sumaNotas: 0, promGoles: 0, promAsis: 0, prom: 0, nota: 0, presencia: 0,
 };
 
 // --- Votación del MVP ---
@@ -143,7 +146,8 @@ export function mvpDePartido(partido, conteo) {
   const votos = conteo || {};
   const ids = Object.keys(votos).filter((id) => votos[id] > 0);
   if (!ids.length) return null;
-  const aporte = (id) => ((partido.g && partido.g[id]) || 0) + ((partido.a && partido.a[id]) || 0);
+  const aporte = (id) =>
+    ((partido.g && partido.g[id]) || 0) + ((partido.a && partido.a[id]) || 0) + ((partido.at && partido.at[id]) || 0);
   return ids.sort((x, y) => votos[y] - votos[x] || aporte(y) - aporte(x) || (x < y ? -1 : 1))[0];
 }
 

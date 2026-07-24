@@ -71,11 +71,12 @@ export default function ListaPines({ jugadores, grupo, cerrar, avisar }) {
     }
   };
 
-  const generarFaltantes = async () => {
-    setGenerando("faltantes");
+  // Genera PIN para una lista de jugadores (los faltantes, o TODOS).
+  const generarLote = async (lista, clave) => {
+    setGenerando(clave);
     let fallos = 0;
     const nuevos = {};
-    for (const j of faltantes) {
+    for (const j of lista) {
       try { nuevos[j.id] = await nube.generarPin(j.id); } catch { fallos++; }
     }
     setVistos((v) => ({ ...v, ...nuevos }));
@@ -86,6 +87,9 @@ export default function ListaPines({ jugadores, grupo, cerrar, avisar }) {
     setGenerando(null);
     avisar(fallos ? `Quedaron ${fallos} sin generar.` : "PIN generados.");
   };
+
+  const generarFaltantes = () => generarLote(faltantes, "faltantes");
+  const regenerarTodos = () => generarLote(jugadores, "todos");
 
   return (
     <div className="fixed inset-0 z-[65] flex flex-col" style={{ background: C.fondo }}>
@@ -104,6 +108,23 @@ export default function ListaPines({ jugadores, grupo, cerrar, avisar }) {
           </div>
         ) : (
           <>
+            {/* Regenerar TODOS de una vez (útil, p. ej., tras un problema de seguridad) */}
+            <div className="rounded-2xl p-3.5 mb-4" style={{ background: C.tarjeta, boxShadow: SOMBRA }}>
+              <div className="flex items-center gap-2">
+                <RefreshCw size={16} color={C.oro} />
+                <div className="font-bold text-sm" style={{ color: C.tinta }}>Cambiar TODOS los PIN</div>
+              </div>
+              <div className="text-xs mt-1 mb-3" style={{ color: C.humo }}>
+                Genera un PIN nuevo para cada uno de los {jugadores.length} jugadores. Los PIN
+                anteriores dejan de servir; hay que repartir los nuevos.
+              </div>
+              <Boton ancho onClick={regenerarTodos} disabled={generando === "todos"}>
+                {generando === "todos"
+                  ? <><Loader2 size={16} className="animate-spin" /> Regenerando…</>
+                  : <><RefreshCw size={16} /> Regenerar los {jugadores.length}</>}
+              </Boton>
+            </div>
+
             {conocidos.length > 0 && (
               <>
                 <Rotulo>Listos para repartir · {conocidos.length}</Rotulo>

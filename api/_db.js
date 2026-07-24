@@ -43,6 +43,23 @@ export function hashPin(pin) {
   return `${salt}:${hash}`;
 }
 
+// PIN de 4 dígitos aleatorio, para entregárselo a un jugador nuevo.
+export function generarPin() {
+  return String(crypto.randomInt(1000, 10000));
+}
+
+// ¿Quien manda esta petición es el administrador?
+// Devuelve { configurado, ok }. Si no hay PIN configurado, el grupo está abierto.
+// ADMIN_PIN (variable de entorno) sigue funcionando como llave maestra de rescate,
+// por si se olvida el PIN guardado en la base.
+export async function revisarAdmin(db, pin) {
+  const maestra = process.env.ADMIN_PIN;
+  if (maestra && String(pin || "") === String(maestra)) return { configurado: true, ok: true };
+  const doc = await db.collection("config").findOne({ _id: "admin" });
+  if (!doc || !doc.pinHash) return { configurado: false, ok: true };
+  return { configurado: true, ok: verificarPin(pin, doc.pinHash) };
+}
+
 export function verificarPin(pin, guardado) {
   if (!guardado || !guardado.includes(":")) return false;
   const [salt, hash] = guardado.split(":");

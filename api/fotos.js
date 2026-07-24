@@ -1,17 +1,20 @@
 // GET  /api/fotos  → { [idJugador]: "data:image/jpeg;base64,..." }  (todas las fotos)
 // POST /api/fotos  → body { jugadorId, data, pin }
 //
-// La primera vez que alguien sube su foto, el PIN que elige queda asociado a ella.
-// Para cambiarla después hay que enviar ese mismo PIN. Así nadie sube la foto por otro.
+// El PIN NO se fija aquí: lo genera el administrador al agregar al jugador (ver
+// api/pines.js) y se guarda en la colección "pines". Así nadie puede "reservar"
+// la foto de otro subiéndola primero: si no tienes el PIN que te dio el admin,
+// no puedes subir nada a nombre de esa persona.
 
-import { getDb, cors, leerBody, hashPin, verificarPin } from "./_db.js";
+import { getDb, cors, leerBody, verificarPin } from "./_db.js";
 
 export default async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const col = (await getDb()).collection("fotos");
+    const db = await getDb();
+    const col = db.collection("fotos");
 
     if (req.method === "GET") {
       const docs = await col.find({}, { projection: { data: 1 } }).toArray();
@@ -25,25 +28,22 @@ export default async function handler(req, res) {
       if (!jugadorId || !data || !pin) {
         return res.status(400).json({ error: "Faltan datos, foto o PIN." });
       }
-      if (String(pin).length < 4) {
-        return res.status(400).json({ error: "El PIN debe tener al menos 4 dígitos." });
+
+      const registro = await db.collection("pines").findOne({ _id: jugadorId });
+      if (!registro || !registro.pinHash) {
+        return res.status(403).json({
+          error: "Este jugador todavía no tiene PIN. Pídeselo al administrador del grupo.",
+        });
+      }
+      if (!verificarPin(pin, registro.pinHash)) {
+        return res.status(401).json({ error: "PIN incorrecto. Esa foto solo la puede cambiar su dueño." });
       }
 
-      const existente = await col.findOne({ _id: jugadorId });
-      if (existente && existente.pinHash) {
-        // Ya hay foto protegida: exige el PIN correcto para cambiarla.
-        if (!verificarPin(pin, existente.pinHash)) {
-          return res.status(401).json({ error: "PIN incorrecto. Esa foto la protege otra persona." });
-        }
-        await col.updateOne({ _id: jugadorId }, { $set: { data, actualizado: new Date() } });
-      } else {
-        // Primera vez: se guarda la foto y se fija el PIN.
-        await col.updateOne(
-          { _id: jugadorId },
-          { $set: { data, pinHash: hashPin(pin), actualizado: new Date() } },
-          { upsert: true }
-        );
-      }
+      await col.updateOne(
+        { _id: jugadorId },
+        { $set: { data, actualizado: new Date() } },
+        { upsert: true }
+      );
       return res.status(200).json({ ok: true });
     }
 

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { X, Trash2, Camera } from "lucide-react";
+import { X, Trash2, Camera, KeyRound } from "lucide-react";
 import { C, PETOS, NUM, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Marcador } from "../components/ui";
 import { dec, dec1, fechaCorta, notaPartido } from "../lib/util";
 
-export default function FichaJugador({ jugador, stats, partidos, cerrar, renombrar, eliminar, pedirFoto }) {
+export default function FichaJugador({ jugador, stats, partidos, cerrar, renombrar, eliminar, pedirFoto, regenerarPin }) {
   const [nombre, setNombre] = useState(jugador.nombre);
   const suyos = partidos.filter((p) => p.att.includes(jugador.id)).slice(0, 8);
   const tarjeta = { background: C.tarjeta, boxShadow: SOMBRA };
@@ -74,6 +74,20 @@ export default function FichaJugador({ jugador, stats, partidos, cerrar, renombr
             <Marcador valor={`${Math.round(stats.presencia * 100)}%`} etiqueta="Asistencia" color={C.primario} />
           </div>
         </div>
+
+        <button
+          onClick={() => regenerarPin && regenerarPin(jugador.id, jugador.nombre)}
+          className="w-full mt-4 rounded-2xl p-3 flex items-center gap-3 text-left active:scale-[0.99] transition"
+          style={tarjeta}
+        >
+          <div className="rounded-xl p-2" style={{ background: `${C.primario}18` }}>
+            <KeyRound size={16} color={C.primario} />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-bold" style={{ color: C.tinta }}>Generar PIN nuevo</div>
+            <div className="text-xs" style={{ color: C.humo }}>Si se le olvidó el suyo para subir la foto</div>
+          </div>
+        </button>
 
         <div className="mt-6"><Rotulo>Últimos partidos</Rotulo></div>
         <div className="mt-2 rounded-2xl overflow-hidden" style={tarjeta}>

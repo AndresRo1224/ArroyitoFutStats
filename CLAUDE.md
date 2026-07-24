@@ -60,18 +60,32 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
   para Vercel. `api/_db.js` cachea la conexión a Mongo y trae los helpers de PIN (scrypt).
 - El cliente vive en `src/lib/nube.js`. La URL base se toma de `src/config.js` (`API_BASE`)
   o del override que el usuario guarda en Ajustes (`localStorage "canchita:api"`).
-- **Cada jugador sube su propia foto con un PIN.** La primera vez fija el PIN; para cambiarla
-  después hay que reenviar ese mismo PIN (verificado en el servidor). Ver `POST /api/fotos`.
-- **Nómina y partidos se protegen con `ADMIN_PIN`** (variable de entorno en Vercel). Hay dos
-  capas: el servidor rechaza `PUT /api/datos` sin la cabecera `x-admin-pin` correcta, y la app
-  pide el PIN con el modal `PedirPin` antes de agregar/borrar/renombrar jugadores, guardar o
-  borrar partidos y borrar todo (`conPermiso()` en `App.jsx`). El PIN acertado se recuerda en
-  `localStorage "canchita:admin"` y no se vuelve a pedir en ese teléfono; si el servidor lo
-  rechaza después, se borra y se vuelve a pedir.
-- `GET /api/admin` dice si hay PIN configurado; `POST /api/admin {pin}` lo verifica. Si
-  `ADMIN_PIN` no está definida, la nómina queda abierta y la app no pregunta nada.
-- Ojo con la diferencia: el **PIN de administrador** es uno solo para el grupo y cuida la
-  nómina/partidos; los **PIN de las fotos** son uno por jugador y cuida su propia foto.
+### Los dos tipos de PIN
+
+**No confundirlos.** Ambos se guardan solo como hash (scrypt) y nunca se pueden consultar.
+
+1. **PIN del grupo (administrador)** — uno solo. Protege nómina y partidos.
+   - Vive en la base: colección `config`, doc `_id: "admin"`. Se define y se cambia **desde
+     Ajustes**, sin redesplegar (`PUT /api/admin {pinNuevo, pinActual}`).
+   - `GET /api/admin` → `{ configurado }`; `POST /api/admin {pin}` lo verifica.
+   - Dos capas: el servidor rechaza `PUT /api/datos` y `/api/pines` sin la cabecera
+     `x-admin-pin` correcta, y la app pide el PIN con el modal `PedirPin` antes de
+     agregar/borrar/renombrar jugadores, guardar o borrar partidos y borrar todo
+     (`conPermiso()` en `App.jsx`). El PIN acertado se recuerda en
+     `localStorage "canchita:admin"`; si el servidor lo rechaza luego, se borra y se repregunta.
+   - La variable de entorno `ADMIN_PIN` **ya no es la fuente de verdad**, pero si está definida
+     sigue funcionando como **llave maestra de rescate** por si se olvida el PIN de la base.
+   - Si no hay ninguno configurado, el grupo queda abierto y la app no pregunta nada.
+
+2. **PIN personal de cada jugador** — uno por persona. Solo sirve para subir SU foto.
+   - Vive en la colección `pines` (`_id: idJugador`). **Lo genera el servidor** cuando el
+     administrador agrega a alguien (`POST /api/pines`), y se devuelve en claro **una sola vez**
+     para que el admin se lo pase (modal `MostrarPin`). Después solo se puede regenerar, desde
+     la ficha del jugador.
+   - `POST /api/fotos` verifica contra ese PIN. Si el jugador no tiene PIN registrado, rechaza
+     con 403. Esto evita que alguien "reserve" la foto de otro subiéndola primero.
+   - Al sacar a alguien de la nómina, `DELETE /api/pines?jugadorId=` borra su PIN y su foto.
+   - Sin nube, `src/lib/nube.js` replica la misma lógica contra `localStorage "canchita:pins"`.
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.
 - Variables de entorno del backend: `MONGODB_URI` (obligatoria), `MONGODB_DB` (opc., default

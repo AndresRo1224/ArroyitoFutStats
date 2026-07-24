@@ -13,6 +13,7 @@ import EditorPartido from "./screens/EditorPartido";
 import FichaJugador from "./screens/FichaJugador";
 import SubirFoto from "./screens/SubirFoto";
 import PedirPin from "./screens/PedirPin";
+import MostrarPin from "./screens/MostrarPin";
 
 const PESTANAS = [
   { id: "tabla", label: "Tabla", icono: Trophy },
@@ -40,6 +41,7 @@ export default function App() {
   const [sincronizando, setSincronizando] = useState(false);
   const [adminNecesario, setAdminNecesario] = useState(false); // el servidor exige PIN
   const [pedirPin, setPedirPin] = useState(null); // { titulo, texto, accion }
+  const [pinNuevo, setPinNuevo] = useState(null); // { nombre, pin } recién generado
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
@@ -148,10 +150,34 @@ export default function App() {
       setEditor(null);
     });
 
+  // Al agregar a alguien, el servidor le genera su PIN personal y se lo mostramos
+  // al administrador para que se lo pase. Si eso falla, no se crea el jugador.
+  const agregarJugador = (nombre) =>
+    conPermiso("Agregar a la nómina", async () => {
+      const id = uid();
+      try {
+        const pin = await nube.generarPin(id);
+        setJugadores((js) => [...js, { id, nombre }]);
+        setPinNuevo({ nombre, pin });
+      } catch (e) {
+        setAviso("No se pudo agregar: " + e.message);
+      }
+    });
+
+  const regenerarPin = (id, nombre) =>
+    conPermiso("Generar PIN nuevo", async () => {
+      try {
+        setPinNuevo({ nombre, pin: await nube.generarPin(id) });
+      } catch (e) {
+        setAviso("No se pudo generar el PIN: " + e.message);
+      }
+    });
+
   const borrarJugador = (id) =>
     conPermiso("Sacar de la nómina", () => {
       setJugadores((js) => js.filter((j) => j.id !== id));
       setFotos((f) => { const c = { ...f }; delete c[id]; return c; });
+      nube.borrarPin(id); // se lleva también su PIN y su foto de la nube
       setFicha(null);
       setConfirmar(null);
     });
@@ -232,11 +258,7 @@ export default function App() {
                 tabla={tabla}
                 abrirJugador={setFicha}
                 pedirFoto={setSubir}
-                agregar={(n) =>
-                  conPermiso("Agregar a la nómina", () =>
-                    setJugadores((js) => [...js, { id: uid(), nombre: n }])
-                  )
-                }
+                agregar={agregarJugador}
               />
             ) : tab === "partidos" ? (
               <Partidos
@@ -280,6 +302,10 @@ export default function App() {
           />
         )}
 
+        {pinNuevo && (
+          <MostrarPin nombre={pinNuevo.nombre} pin={pinNuevo.pin} onCerrar={() => setPinNuevo(null)} />
+        )}
+
         {pedirPin && (
           <PedirPin
             titulo={pedirPin.titulo}
@@ -318,6 +344,7 @@ export default function App() {
             partidos={partidos}
             cerrar={() => setFicha(null)}
             pedirFoto={setSubir}
+            regenerarPin={regenerarPin}
             renombrar={(n) => {
               const actual = jugadores.find((j) => j.id === ficha);
               if (!actual || actual.nombre === n) return; // sin cambios: no molestar con el PIN
@@ -397,15 +424,40 @@ export default function App() {
 // Panel de ajustes, incluida la configuración de la nube.
 function Ajustes({ grupo, setGrupo, enLinea, sincronizando, refrescar, cerrar, exportar, importar, borrarTodo, avisar }) {
   const [url, setUrl] = useState(nube.baseGuardada());
-  const [admin, setAdmin] = useState(nube.adminPin());
   const [probando, setProbando] = useState(false);
+  const [configurado, setConfigurado] = useState(null); // ¿ya hay PIN de grupo?
+  const [pinActual, setPinActual] = useState("");
+  const [pinNuevoAdmin, setPinNuevoAdmin] = useState("");
+  const [guardandoPin, setGuardandoPin] = useState(false);
+
+  useEffect(() => {
+    if (!nube.nubeActiva()) return;
+    nube.adminRequerido()
+      .then((r) => setConfigurado(!!(r && r.configurado)))
+      .catch(() => {});
+  }, []);
 
   const guardarConexion = () => {
     nube.fijarBaseNube(url);
-    nube.fijarAdminPin(admin);
     avisar("Conexión guardada. Sincronizando…");
     refrescar();
     cerrar();
+  };
+
+  const guardarPinGrupo = async () => {
+    if (pinNuevoAdmin.trim().length < 4) return avisar("El PIN debe tener al menos 4 dígitos.");
+    setGuardandoPin(true);
+    try {
+      await nube.definirAdmin(pinNuevoAdmin.trim(), pinActual.trim());
+      nube.fijarAdminPin(pinNuevoAdmin.trim()); // este teléfono queda autorizado
+      setConfigurado(true);
+      setPinActual(""); setPinNuevoAdmin("");
+      avisar("PIN del grupo guardado.");
+    } catch (e) {
+      avisar(e.message);
+    } finally {
+      setGuardandoPin(false);
+    }
   };
 
   const probar = async () => {
@@ -450,16 +502,42 @@ function Ajustes({ grupo, setGrupo, enLinea, sincronizando, refrescar, cerrar, e
           className="w-full rounded-xl px-3 py-3 text-sm outline-none"
           style={campo}
         />
-        <input
-          value={admin}
-          onChange={(e) => setAdmin(e.target.value)}
-          placeholder="PIN de administrador (opcional)"
-          className="w-full mt-2 rounded-xl px-3 py-3 text-sm outline-none"
-          style={campo}
-        />
         <div className="flex gap-2 mt-2">
           <div className="flex-1"><Boton ancho tono="fantasma" onClick={probar} disabled={probando}>{probando ? "Probando…" : "Probar conexión"}</Boton></div>
           <div className="flex-1"><Boton ancho onClick={guardarConexion}>Guardar</Boton></div>
+        </div>
+
+        <div className="mt-5"><Rotulo>PIN del grupo</Rotulo></div>
+        <div className="text-xs mt-1 mb-2" style={{ color: C.humo }}>
+          Protege la nómina y los partidos: solo quien lo sepa puede agregar jugadores o
+          registrar partidos. {configurado === true
+            ? "Ya hay uno definido."
+            : configurado === false
+              ? "Todavía no hay ninguno: cualquiera puede editar."
+              : ""}
+        </div>
+        {configurado && (
+          <input
+            value={pinActual}
+            onChange={(e) => setPinActual(e.target.value.replace(/\D/g, "").slice(0, 12))}
+            inputMode="numeric"
+            placeholder="PIN actual"
+            className="w-full rounded-xl px-3 py-3 text-sm outline-none"
+            style={campo}
+          />
+        )}
+        <input
+          value={pinNuevoAdmin}
+          onChange={(e) => setPinNuevoAdmin(e.target.value.replace(/\D/g, "").slice(0, 12))}
+          inputMode="numeric"
+          placeholder={configurado ? "PIN nuevo" : "Elige un PIN (mínimo 4 dígitos)"}
+          className={`w-full rounded-xl px-3 py-3 text-sm outline-none ${configurado ? "mt-2" : ""}`}
+          style={campo}
+        />
+        <div className="mt-2">
+          <Boton ancho tono="suave" onClick={guardarPinGrupo} disabled={guardandoPin}>
+            {guardandoPin ? "Guardando…" : configurado ? "Cambiar PIN del grupo" : "Definir PIN del grupo"}
+          </Boton>
         </div>
 
         <div className="mt-5"><Rotulo>Respaldo</Rotulo></div>

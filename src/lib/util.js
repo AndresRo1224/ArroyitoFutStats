@@ -1,0 +1,105 @@
+export const uid = () =>
+  Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+
+// Fechas siempre en hora local: toISOString() correría el día en Colombia.
+export const isoLocal = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+export function domingoMasReciente() {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return isoLocal(d);
+}
+
+const aDate = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+export const fechaLarga = (iso) =>
+  aDate(iso).toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" });
+
+export const fechaCorta = (iso) =>
+  aDate(iso).toLocaleDateString("es", { day: "2-digit", month: "short" });
+
+export const iniciales = (n) =>
+  (n || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+
+export const nombreCorto = (n) => {
+  const p = (n || "?").trim().split(/\s+/);
+  return p.length > 1 ? `${p[0]} ${p[1][0]}.` : p[0];
+};
+
+export const dec = (x) => (Math.round(x * 100) / 100).toFixed(2);
+
+// Las notas van con un decimal, como las calificaciones del fútbol real (7.5).
+export const dec1 = (x) => (Math.round(x * 10) / 10).toFixed(1);
+
+// Nota de rendimiento de UN partido, en escala de fútbol real (máximo 10).
+// Base 6.0 por presentarse a jugar, y sube con goles y asistencias.
+export const NOTA_BASE = 6;
+export const NOTA_GOL = 0.8;
+export const NOTA_ASIS = 0.5;
+export const NOTA_MAX = 10;
+
+export const notaPartido = (goles = 0, asis = 0) =>
+  Math.min(NOTA_MAX, NOTA_BASE + NOTA_GOL * goles + NOTA_ASIS * asis);
+
+// Las fotos se recortan a un cuadrado chico: 30 jugadores caben de sobra
+// en el almacenamiento del teléfono.
+export function comprimirFoto(file, lado = 240, calidad = 0.72) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement("canvas");
+        cv.width = lado;
+        cv.height = lado;
+        const ctx = cv.getContext("2d");
+        const min = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, lado, lado);
+        resolve(cv.toDataURL("image/jpeg", calidad));
+      };
+      img.onerror = reject;
+      img.src = fr.result;
+    };
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
+// Tabla general.
+//  - prom = (goles + asistencias) / partidos jugados (dato crudo)
+//  - nota = promedio de las notas de cada partido, en escala 0-10
+// La nota se acumula partido a partido (no sobre los totales) porque el tope de 10
+// se aplica a cada partido, igual que una calificación real.
+export function calcularTabla(jugadores, partidos) {
+  const base = {};
+  jugadores.forEach((j) => {
+    base[j.id] = { id: j.id, nombre: j.nombre, pj: 0, goles: 0, asis: 0, sumaNotas: 0 };
+  });
+  partidos.forEach((p) =>
+    p.att.forEach((id) => {
+      if (!base[id]) return; // jugador borrado de la nómina
+      const g = (p.g && p.g[id]) || 0;
+      const a = (p.a && p.a[id]) || 0;
+      base[id].pj += 1;
+      base[id].goles += g;
+      base[id].asis += a;
+      base[id].sumaNotas += notaPartido(g, a);
+    })
+  );
+  return Object.values(base).map((t) => ({
+    ...t,
+    promGoles: t.pj ? t.goles / t.pj : 0,
+    promAsis: t.pj ? t.asis / t.pj : 0,
+    prom: t.pj ? (t.goles + t.asis) / t.pj : 0,
+    nota: t.pj ? t.sumaNotas / t.pj : 0,
+    presencia: partidos.length ? t.pj / partidos.length : 0,
+  }));
+}
+
+export const filaVacia = {
+  pj: 0, goles: 0, asis: 0, sumaNotas: 0, promGoles: 0, promAsis: 0, prom: 0, nota: 0, presencia: 0,
+};

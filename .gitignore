@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+*.log
+.env
+
+# Android: el proyecto se versiona, sus compilados no
+android/.gradle
+android/.idea
+android/local.properties
+android/build
+android/app/build
+android/capacitor-cordova-android-plugins/build
+*.apk
+*.aab

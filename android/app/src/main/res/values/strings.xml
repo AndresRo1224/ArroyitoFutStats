@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ArroyitoFutStats</string>
+    <string name="title_activity_main">ArroyitoFutStats</string>
+    <string name="package_name">com.canchita.futbol</string>
+    <string name="custom_url_scheme">com.canchita.futbol</string>
+</resources>

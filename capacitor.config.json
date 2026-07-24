@@ -1,0 +1,8 @@
+{
+  "appId": "com.canchita.futbol",
+  "appName": "ArroyitoFutStats",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#EDF1F6"
+  }
+}

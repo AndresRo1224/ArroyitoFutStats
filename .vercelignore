@@ -1,0 +1,4 @@
+# El proyecto nativo de Android no se despliega en Vercel: es pesado y solo
+# sirve para compilar el APK localmente o en GitHub Actions.
+android/
+assets/

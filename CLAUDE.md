@@ -67,7 +67,23 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.
 - Variables de entorno del backend: `MONGODB_URI` (obligatoria), `MONGODB_DB` (opc., default
-  "canchita"), `ADMIN_PIN` (opc.).
+  "canchita"), `ADMIN_PIN` (opc.). Se configuran en Vercel → Settings → Environment Variables;
+  tras cambiarlas hay que **redesplegar** para que tomen efecto.
+- Despliegue actual: **https://arroyito-fut-stats.vercel.app** (repo
+  `AndresRo1224/ArroyitoFutStats`). `src/config.js` ya apunta ahí.
+- Diagnóstico rápido del backend: `GET /api/ping` responde `{"ok":true,"nube":true}` cuando
+  Atlas está conectado, o el error exacto si algo falta.
+
+## Distribución
+
+- **Android:** APK con `npm run android:sync` + Android Studio / `android:apk` / GitHub Actions.
+- **iPhone:** iOS no permite instalar apps sueltas (no hay equivalente del APK) y una app
+  nativa exigiría Mac + cuenta Apple Developer. La vía es la **PWA**: abrir la URL de Vercel
+  **en Safari** → Compartir → *Añadir a pantalla de inicio*. Queda a pantalla completa con
+  ícono propio. En Android también se puede instalar así desde Chrome.
+- El manifest y los íconos de la PWA están en `public/` (`manifest.webmanifest`,
+  `icono-192.png`, `icono-512.png`, `apple-touch-icon.png`). No hay service worker: la PWA
+  necesita internet para cargar.
 
 ## Convenciones
 

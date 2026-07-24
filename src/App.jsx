@@ -27,7 +27,7 @@ export default function App() {
   const [jugadores, setJugadores] = useState([]);
   const [partidos, setPartidos] = useState([]);
   const [fotos, setFotos] = useState({});
-  const [grupo, setGrupo] = useState("Arroyito Fútbol 5");
+  const [grupo, setGrupo] = useState("ArroyitoFutStats");
   const [cargado, setCargado] = useState(false);
   const [editor, setEditor] = useState(null);
   const [ficha, setFicha] = useState(null);

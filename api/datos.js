@@ -7,7 +7,7 @@
 
 import { getDb, cors, leerBody } from "./_db.js";
 
-const VACIO = { grupo: "Arroyito Fútbol 5", jugadores: [], partidos: [] };
+const VACIO = { grupo: "ArroyitoFutStats", jugadores: [], partidos: [] };
 
 export default async function handler(req, res) {
   cors(res);

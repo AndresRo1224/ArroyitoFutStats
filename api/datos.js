@@ -5,7 +5,7 @@
 // de entorno ADMIN_PIN en Vercel, las escrituras exigen la cabecera x-admin-pin.
 // Si no la defines, cualquiera con la app puede editar (modo abierto).
 
-import { getDb, cors, leerBody, revisarAdmin } from "./_db.js";
+import { getDb, cors, leerBody, revisarAdmin, conLimite } from "./_db.js";
 
 const VACIO = { grupo: "ArroyitoFutStats", jugadores: [], partidos: [] };
 
@@ -28,9 +28,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PUT") {
-      const admin = await revisarAdmin(db, req.headers["x-admin-pin"]);
-      if (admin.configurado && !admin.ok) {
-        return res.status(401).json({ error: "PIN de administrador incorrecto." });
+      const yaHay = (await revisarAdmin(db, "")).configurado;
+      if (yaHay) {
+        const r = await conLimite(db, req, "admin", async () => (await revisarAdmin(db, req.headers["x-admin-pin"])).ok);
+        if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
+        if (!r.ok) return res.status(401).json({ error: "PIN de administrador incorrecto." });
       }
       const { grupo, jugadores, partidos } = leerBody(req);
       if (!Array.isArray(jugadores) || !Array.isArray(partidos)) {

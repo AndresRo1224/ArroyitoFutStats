@@ -2,15 +2,13 @@
 // se puede cambiar desde la app sin redesplegar.
 //
 // GET  /api/admin → { configurado: bool }   ¿ya hay PIN definido?
-// POST /api/admin → { pin }                 verifica el PIN (200 / 401)
+// POST /api/admin → { pin }                 verifica el PIN (200 / 401 / 429)
 // PUT  /api/admin → { pinNuevo, pinActual } define o cambia el PIN
-//        · si todavía no hay ninguno, lo crea sin pedir pinActual
-//        · si ya hay, exige el pinActual correcto
 //
-// La variable de entorno ADMIN_PIN, si existe, sigue sirviendo como llave maestra
-// de rescate (por si se olvida el PIN guardado en la base).
+// Verificar y cambiar el PIN pasa por el límite de intentos: es la superficie más
+// sensible, así que un atacante no puede adivinarlo por fuerza bruta.
 
-import { getDb, cors, leerBody, hashPin, revisarAdmin } from "./_db.js";
+import { getDb, cors, leerBody, hashPin, revisarAdmin, conLimite } from "./_db.js";
 
 export default async function handler(req, res) {
   cors(res);
@@ -23,14 +21,15 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       const doc = await col.findOne({ _id: "admin" });
       const configurado = !!(doc && doc.pinHash) || !!process.env.ADMIN_PIN;
-      // "requerido" se conserva por compatibilidad con versiones anteriores de la app.
       return res.status(200).json({ configurado, requerido: configurado });
     }
 
     if (req.method === "POST") {
       const { pin } = leerBody(req);
-      const r = await revisarAdmin(db, pin);
-      if (!r.configurado) return res.status(200).json({ ok: true, configurado: false });
+      const estado = await revisarAdmin(db, ""); // ¿está configurado?
+      if (!estado.configurado) return res.status(200).json({ ok: true, configurado: false });
+      const r = await conLimite(db, req, "admin", async () => (await revisarAdmin(db, pin)).ok);
+      if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
       if (!r.ok) return res.status(401).json({ error: "PIN incorrecto." });
       return res.status(200).json({ ok: true, configurado: true });
     }
@@ -40,9 +39,11 @@ export default async function handler(req, res) {
       if (!pinNuevo || String(pinNuevo).length < 4) {
         return res.status(400).json({ error: "El PIN debe tener al menos 4 dígitos." });
       }
-      const r = await revisarAdmin(db, pinActual);
-      if (r.configurado && !r.ok) {
-        return res.status(401).json({ error: "El PIN actual es incorrecto." });
+      const yaHay = (await revisarAdmin(db, "")).configurado;
+      if (yaHay) {
+        const r = await conLimite(db, req, "admin", async () => (await revisarAdmin(db, pinActual)).ok);
+        if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
+        if (!r.ok) return res.status(401).json({ error: "El PIN actual es incorrecto." });
       }
       await col.updateOne(
         { _id: "admin" },

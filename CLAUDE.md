@@ -45,6 +45,15 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
 ```
 
 - `partidos` se mantiene ordenado por fecha descendente; `partidos[0]` es el más reciente.
+- **MVP, banners y trofeos** viven en la nube:
+  - `votos` (colección): `{ _id:"partidoId:votanteId", partidoId, votanteId, votadoId }`. Cada
+    asistente vota una vez con su PIN personal; la votación dura 24h desde `partido.creado`
+    (`votacionAbierta()` en util). El MVP se calcula (`mvpDePartido`), no se guarda.
+  - `banners` (colección): `{ _id: jugadorId, banner: "idDiseño" }`. Solo el id de un fondo de
+    `BANNERS` (tema.js); lo elige el jugador con su PIN. No es una imagen: no pesa.
+  - Los **trofeos son calculados** (`calcularTrofeos` en util), históricos: títulos actuales
+    (goleador, asistidor, mejor nota, más constante, rey del MVP) + MVP acumulado por partido.
+    La pantalla `Vitrina` (5º tab) y la ficha los muestran.
 - **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a)` en
   `src/lib/util.js` da la nota de un partido: `6.0 + 0.8·goles + 0.5·asistencias`, con tope
   10. `calcularTabla` promedia esas notas partido a partido (el tope se aplica a cada
@@ -56,8 +65,17 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
 
 ## Nube (opcional)
 
-- El backend son funciones serverless en `api/` (`datos.js`, `fotos.js`, `ping.js`), pensadas
-  para Vercel. `api/_db.js` cachea la conexión a Mongo y trae los helpers de PIN (scrypt).
+- El backend son funciones serverless en `api/` (`todo`, `datos`, `fotos`, `banners`, `votos`,
+  `admin`, `pines`, `ping`), pensadas para Vercel. `api/_db.js` cachea la conexión a Mongo y
+  trae los helpers de PIN (scrypt) y de límite de intentos.
+- **Conexiones a Atlas:** el pool es `maxPoolSize: 1` (M0 free tiene pocas conexiones). La app
+  carga TODO con una sola llamada a **`GET /api/todo`** (datos+fotos+banners+votos+admin), no
+  cinco. No agregues llamadas sueltas en la carga inicial; si necesitas más datos, súmalos a
+  `/api/todo`.
+- **Anti fuerza bruta (crítico):** todo endpoint que verifica un PIN pasa por `conLimite()`
+  (`_db.js`): cuenta fallos por IP y por objetivo en la colección `seguridad` (índice TTL sobre
+  `expira`) y bloquea 15 min tras 6 fallos, devolviendo 429. Sin esto, los PIN numéricos se
+  adivinan por fuerza bruta. Los PIN personales que genera el servidor son de 6 dígitos.
 - El cliente vive en `src/lib/nube.js`. La URL base se toma de `src/config.js` (`API_BASE`)
   o del override que el usuario guarda en Ajustes (`localStorage "canchita:api"`).
 ### Los dos tipos de PIN

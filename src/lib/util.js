@@ -103,3 +103,61 @@ export function calcularTabla(jugadores, partidos) {
 export const filaVacia = {
   pj: 0, goles: 0, asis: 0, sumaNotas: 0, promGoles: 0, promAsis: 0, prom: 0, nota: 0, presencia: 0,
 };
+
+// --- Votación del MVP ---
+export const VOTACION_MS = 24 * 60 * 60 * 1000; // la votación dura 24 horas
+
+// La votación se abre al registrar el partido (campo `creado`) y dura 24h.
+export const votacionAbierta = (partido) =>
+  !!(partido && partido.creado) && Date.now() < partido.creado + VOTACION_MS;
+
+export const cierreVotacion = (partido) => (partido && partido.creado ? partido.creado + VOTACION_MS : 0);
+
+// MVP de un partido según los votos. Empate: gana quien más aportó (goles+asist)
+// en ese partido; si sigue el empate, el id menor (estable). Sin votos: null.
+export function mvpDePartido(partido, conteo) {
+  const votos = conteo || {};
+  const ids = Object.keys(votos).filter((id) => votos[id] > 0);
+  if (!ids.length) return null;
+  const aporte = (id) => ((partido.g && partido.g[id]) || 0) + ((partido.a && partido.a[id]) || 0);
+  return ids.sort((x, y) => votos[y] - votos[x] || aporte(y) - aporte(x) || (x < y ? -1 : 1))[0];
+}
+
+// Trofeos históricos. Recibe la tabla ya calculada, los partidos y los votos
+// por partido ({ [id]: { conteo, votantes } }). Devuelve los títulos actuales,
+// el conteo de MVP por jugador y un índice por jugador para su ficha.
+export function calcularTrofeos(tabla, partidos, votosPorPartido = {}) {
+  const mapa = Object.fromEntries(tabla.map((t) => [t.id, t]));
+
+  // MVP acumulado: solo cuentan las votaciones ya cerradas.
+  const mvp = {};
+  partidos.forEach((p) => {
+    if (votacionAbierta(p)) return;
+    const conteo = (votosPorPartido[p.id] || {}).conteo;
+    const id = mvpDePartido(p, conteo);
+    if (id && mapa[id]) mvp[id] = (mvp[id] || 0) + 1;
+  });
+
+  const lider = (campo, minPj = 1) => {
+    const c = tabla.filter((t) => t.pj >= minPj && t[campo] > 0);
+    if (!c.length) return null;
+    return c.slice().sort((a, b) => b[campo] - a[campo] || b.nota - a.nota || a.nombre.localeCompare(b.nombre))[0];
+  };
+
+  const reyMvp = Object.entries(mvp).sort((a, b) => b[1] - a[1])[0];
+
+  const titulos = [
+    { clave: "goleador", nombre: "Bota de oro", detalle: "Máximo goleador", jugador: lider("goles"), valor: (t) => `${t.goles} goles` },
+    { clave: "asistidor", nombre: "Rey de las asistencias", detalle: "Máximo asistidor", jugador: lider("asis"), valor: (t) => `${t.asis} asist.` },
+    { clave: "nota", nombre: "Mejor promedio", detalle: "Mejor nota (mín. 2 partidos)", jugador: lider("nota", Math.min(2, partidos.length)), valor: (t) => `${dec1(t.nota)} de nota` },
+    { clave: "constante", nombre: "Inoxidable", detalle: "Más partidos jugados", jugador: lider("pj"), valor: (t) => `${t.pj} partidos` },
+    { clave: "reyMvp", nombre: "Rey del MVP", detalle: "Más veces MVP", jugador: reyMvp && mapa[reyMvp[0]], valor: () => `${reyMvp ? reyMvp[1] : 0} MVP` },
+  ];
+
+  const porJugador = {};
+  const anota = (id) => (porJugador[id] = porJugador[id] || { titulos: [], mvp: 0 });
+  titulos.forEach((t) => { if (t.jugador) anota(t.jugador.id).titulos.push(t.clave); });
+  Object.entries(mvp).forEach(([id, n]) => { anota(id).mvp = n; });
+
+  return { titulos, mvp, porJugador };
+}

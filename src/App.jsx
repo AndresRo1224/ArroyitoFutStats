@@ -1,17 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff } from "lucide-react";
+import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, Medal } from "lucide-react";
 import { C, ROTULO, SOMBRA } from "./tema";
 import { FotoCtx, Boton, Rotulo } from "./components/ui";
-import { calcularTabla, filaVacia, uid } from "./lib/util";
-import { K_DATOS, K_FOTOS, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
+import { calcularTabla, calcularTrofeos, filaVacia, uid } from "./lib/util";
+import { K_DATOS, K_FOTOS, K_BANNERS, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
 import * as nube from "./lib/nube";
 import Tabla from "./screens/Tabla";
 import Nomina from "./screens/Nomina";
 import Partidos from "./screens/Partidos";
 import Ruleta from "./screens/Ruleta";
+import Vitrina from "./screens/Vitrina";
 import EditorPartido from "./screens/EditorPartido";
 import FichaJugador from "./screens/FichaJugador";
 import SubirFoto from "./screens/SubirFoto";
+import ElegirBanner from "./screens/ElegirBanner";
+import VotarMVP from "./screens/VotarMVP";
 import PedirPin from "./screens/PedirPin";
 import MostrarPin from "./screens/MostrarPin";
 import Ajustes from "./screens/Ajustes";
@@ -21,6 +24,7 @@ const PESTANAS = [
   { id: "tabla", label: "Tabla", icono: Trophy },
   { id: "partidos", label: "Partidos", icono: Calendar },
   { id: "ruleta", label: "Ruleta", icono: RotateCw },
+  { id: "trofeos", label: "Trofeos", icono: Medal },
   { id: "jugadores", label: "Nómina", icono: Users },
 ];
 
@@ -31,6 +35,8 @@ export default function App() {
   const [jugadores, setJugadores] = useState([]);
   const [partidos, setPartidos] = useState([]);
   const [fotos, setFotos] = useState({});
+  const [banners, setBanners] = useState({});
+  const [votos, setVotos] = useState({}); // { [partidoId]: { conteo, votantes } }
   const [grupo, setGrupo] = useState("ArroyitoFutStats");
   const [cargado, setCargado] = useState(false);
   const [editor, setEditor] = useState(null);
@@ -46,6 +52,8 @@ export default function App() {
   const [pedirPin, setPedirPin] = useState(null); // { titulo, texto, accion }
   const [pinNuevo, setPinNuevo] = useState(null); // { nombre, pin } recién generado
   const [verPines, setVerPines] = useState(false); // lista de PIN para repartir
+  const [votarPartido, setVotarPartido] = useState(null); // partido cuyo MVP se vota
+  const [bannerJugador, setBannerJugador] = useState(null); // jugador que cambia banner
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
@@ -58,13 +66,22 @@ export default function App() {
     if (!nube.nubeActiva()) { setEnLinea(null); return; }
     setSincronizando(true);
     try {
-      const [d, f] = await Promise.all([nube.obtenerDatos(), nube.obtenerFotos()]);
+      const t = await nube.obtenerTodo();
+      const d = t.datos || {};
+      const f = t.fotos || {}, b = t.banners || {}, v = t.votos || {};
       setJugadores(d.jugadores || []);
       setPartidos(ordenarPartidos(d.partidos || []));
       if (d.grupo) setGrupo(d.grupo);
-      setFotos(f || {});
+      setFotos(f);
+      setBanners(b);
+      setVotos(v);
+      // Estado del administrador (viene en la misma llamada).
+      const necesario = !!(t.admin && t.admin.configurado);
+      setAdminNecesario(necesario);
+      setEsAdmin(!necesario || !!nube.adminPin());
       guardarJSON(K_DATOS, { jugadores: d.jugadores || [], partidos: d.partidos || [], grupo: d.grupo || grupo });
-      guardarJSON(K_FOTOS, f || {});
+      guardarJSON(K_FOTOS, f);
+      guardarJSON(K_BANNERS, b);
       setEnLinea(true);
       if (!silencioso) setAviso("Datos actualizados desde la nube.");
     } catch (e) {
@@ -85,33 +102,26 @@ export default function App() {
         if (d.grupo) setGrupo(d.grupo);
       }
       setFotos(await leerJSON(K_FOTOS, {}));
+      setBanners(await leerJSON(K_BANNERS, {}));
+      if (!nube.nubeActiva()) setEsAdmin(true); // sin nube, este teléfono manda
       setCargado(true);
-      await refrescarNube(true);
+      await refrescarNube(true); // esto también trae el estado del administrador
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ¿El grupo tiene PIN? ¿Y este teléfono sigue autorizado?
+  // Re-consulta si el grupo tiene PIN (tras definirlo/cambiarlo en Ajustes).
+  // Es optimista: no verifica el PIN guardado contra el servidor (una llamada
+  // menos); si estuviera mal, el primer guardado lo corrige y lo vuelve a pedir.
   const revisarAdmin = async () => {
     if (!nube.nubeActiva()) { setAdminNecesario(false); setEsAdmin(true); return; }
     try {
       const r = await nube.adminRequerido();
       const necesario = !!(r && r.configurado);
       setAdminNecesario(necesario);
-      if (!necesario) return setEsAdmin(true); // grupo abierto: todos pueden editar
-      const guardado = nube.adminPin();
-      if (!guardado) return setEsAdmin(false);
-      try {
-        await nube.verificarAdmin(guardado);
-        setEsAdmin(true);
-      } catch {
-        nube.fijarAdminPin(""); // el PIN guardado ya no sirve
-        setEsAdmin(false);
-      }
+      setEsAdmin(!necesario || !!nube.adminPin());
     } catch { /* sin conexión: se decide al intentar guardar */ }
   };
-
-  useEffect(() => { revisarAdmin(); }, []);
 
   const puedeEditar = !adminNecesario || esAdmin;
 
@@ -168,14 +178,21 @@ export default function App() {
     return () => clearTimeout(t);
   }, [jugadores, partidos, grupo, cargado, puedeEditar]);
 
-  // Las fotos solo se cachean local; a la nube van una por una (con PIN).
+  // Fotos y banners se cachean local; a la nube van uno por uno (con PIN).
   useEffect(() => {
     if (!cargado) return;
     const t = setTimeout(() => guardarJSON(K_FOTOS, fotos), 400);
     return () => clearTimeout(t);
   }, [fotos, cargado]);
 
+  useEffect(() => {
+    if (!cargado) return;
+    const t = setTimeout(() => guardarJSON(K_BANNERS, banners), 400);
+    return () => clearTimeout(t);
+  }, [banners, cargado]);
+
   const tabla = useMemo(() => calcularTabla(jugadores, partidos), [jugadores, partidos]);
+  const trofeos = useMemo(() => calcularTrofeos(tabla, partidos, votos), [tabla, partidos, votos]);
   const statsDe = (id) => tabla.find((t) => t.id === id) || filaVacia;
   const ultimoPartido = partidos[0];
 
@@ -185,9 +202,26 @@ export default function App() {
     setFotos((f) => ({ ...f, [id]: data }));
   };
 
+  const guardarBannerJugador = async (bannerId, pin) => {
+    const id = bannerJugador.id;
+    await nube.guardarBanner(id, bannerId, pin); // lanza error si el PIN no coincide
+    setBanners((b) => ({ ...b, [id]: bannerId }));
+  };
+
+  const votar = async (partidoId, votanteId, pin, votadoId) => {
+    const res = await nube.votarMVP(partidoId, votanteId, pin, votadoId); // lanza si falla
+    setVotos((v) => ({ ...v, [partidoId]: res }));
+  };
+
   const guardarPartido = (p) =>
     conPermiso("Guardar partido", () => {
-      setPartidos((ps) => ordenarPartidos([...ps.filter((x) => x.id !== p.id), p]));
+      // `creado` marca el inicio de la ventana de votación del MVP (24h). Se
+      // conserva si el partido ya existía; se pone ahora si es nuevo.
+      setPartidos((ps) => {
+        const previo = ps.find((x) => x.id === p.id);
+        const conMarca = { ...p, creado: (previo && previo.creado) || p.creado || Date.now() };
+        return ordenarPartidos([...ps.filter((x) => x.id !== p.id), conMarca]);
+      });
       setEditor(null);
     });
 
@@ -307,9 +341,13 @@ export default function App() {
               <Partidos
                 partidos={partidos}
                 jugadores={jugadores}
+                votos={votos}
+                esAdmin={puedeEditar}
                 nuevo={() => setEditor({ nuevo: true })}
-                editar={(p) => setEditor({ p })}
+                abrir={(p) => setVotarPartido(p)}
               />
+            ) : tab === "trofeos" ? (
+              <Vitrina tabla={tabla} partidos={partidos} votos={votos} jugadores={jugadores} abrirJugador={setFicha} />
             ) : (
               <Ruleta jugadores={jugadores} tabla={tabla} ultimoPartido={ultimoPartido} />
             )}
@@ -396,8 +434,12 @@ export default function App() {
             jugador={jugadores.find((j) => j.id === ficha)}
             stats={statsDe(ficha)}
             partidos={partidos}
+            banner={banners[ficha]}
+            trofeos={trofeos.porJugador[ficha]}
+            esAdmin={puedeEditar}
             cerrar={() => setFicha(null)}
             pedirFoto={setSubir}
+            cambiarBanner={(j) => setBannerJugador(j)}
             regenerarPin={regenerarPin}
             renombrar={(n) => {
               const actual = jugadores.find((j) => j.id === ficha);
@@ -407,6 +449,27 @@ export default function App() {
               );
             }}
             eliminar={() => setConfirmar({ tipo: "jugador", id: ficha })}
+          />
+        )}
+
+        {votarPartido && partidos.some((p) => p.id === votarPartido.id) && (
+          <VotarMVP
+            partido={partidos.find((p) => p.id === votarPartido.id)}
+            jugadores={jugadores}
+            votos={votos[votarPartido.id]}
+            onVotar={votar}
+            onCerrar={() => setVotarPartido(null)}
+            esAdmin={puedeEditar}
+            onEditar={() => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p }); }}
+          />
+        )}
+
+        {bannerJugador && (
+          <ElegirBanner
+            jugador={bannerJugador}
+            actual={banners[bannerJugador.id]}
+            onGuardar={guardarBannerJugador}
+            onCerrar={() => setBannerJugador(null)}
           />
         )}
 

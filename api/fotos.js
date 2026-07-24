@@ -6,7 +6,7 @@
 // la foto de otro subiéndola primero: si no tienes el PIN que te dio el admin,
 // no puedes subir nada a nombre de esa persona.
 
-import { getDb, cors, leerBody, verificarPin } from "./_db.js";
+import { getDb, cors, leerBody, verificarPin, conLimite } from "./_db.js";
 
 export default async function handler(req, res) {
   cors(res);
@@ -35,9 +35,9 @@ export default async function handler(req, res) {
           error: "Este jugador todavía no tiene PIN. Pídeselo al administrador del grupo.",
         });
       }
-      if (!verificarPin(pin, registro.pinHash)) {
-        return res.status(401).json({ error: "PIN incorrecto. Esa foto solo la puede cambiar su dueño." });
-      }
+      const r = await conLimite(db, req, `foto:${jugadorId}`, () => verificarPin(pin, registro.pinHash));
+      if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
+      if (!r.ok) return res.status(401).json({ error: "PIN incorrecto. Esa foto solo la puede cambiar su dueño." });
 
       await col.updateOne(
         { _id: jugadorId },

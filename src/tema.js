@@ -65,6 +65,26 @@ export const MAX_POR_EQUIPO = 11;
 // Colores de las tajadas de la ruleta.
 export const RUEDA = ["#F04438", "#F5A524", "#12A150", "#2E90FA", "#875BF7", "#EC4899"];
 
+// Banners de perfil: cada jugador elige uno para la portada de su ficha.
+// Son fondos CSS (van tal cual en `background`), así no pesan nada en la base.
+export const BANNERS = [
+  { id: "cancha",    nombre: "Cancha",    css: "repeating-linear-gradient(115deg, #16964E 0 26px, #138746 26px 52px)" },
+  { id: "verde",     nombre: "Verde",     css: "linear-gradient(135deg, #12A150, #0A6B34)" },
+  { id: "oceano",    nombre: "Océano",    css: "linear-gradient(135deg, #12A150, #06AED4)" },
+  { id: "azul",      nombre: "Azul",      css: "linear-gradient(135deg, #2E90FA, #1D4ED8)" },
+  { id: "cielo",     nombre: "Cielo",     css: "linear-gradient(135deg, #06AED4, #6366F1)" },
+  { id: "atardecer", nombre: "Atardecer", css: "linear-gradient(135deg, #FB6514, #F5A524)" },
+  { id: "fuego",     nombre: "Fuego",     css: "linear-gradient(135deg, #F04438, #FB6514)" },
+  { id: "rojo",      nombre: "Rojo",      css: "linear-gradient(135deg, #F04438, #B42318)" },
+  { id: "dorado",    nombre: "Dorado",    css: "linear-gradient(135deg, #F5A524, #B54708)" },
+  { id: "morado",    nombre: "Morado",    css: "linear-gradient(135deg, #875BF7, #5925C5)" },
+  { id: "rosa",      nombre: "Rosa",      css: "linear-gradient(135deg, #EE46BC, #A11552)" },
+  { id: "noche",     nombre: "Noche",     css: "linear-gradient(135deg, #1E293B, #0F1B2D)" },
+];
+
+export const BANNER_POR_DEFECTO = "cancha";
+export const bannerCss = (id) => (BANNERS.find((b) => b.id === id) || BANNERS[0]).css;
+
 // Sombras de elevación para las tarjetas.
 export const SOMBRA = "0 1px 2px rgba(15,27,45,0.06), 0 2px 8px rgba(15,27,45,0.06)";
 export const SOMBRA_ALTA = "0 12px 32px rgba(15,27,45,0.16)";

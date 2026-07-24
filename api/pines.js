@@ -6,7 +6,7 @@
 // POST   /api/pines  { jugadorId }        (cabecera x-admin-pin) → { pin }  genera o regenera
 // DELETE /api/pines?jugadorId=xxx         (cabecera x-admin-pin) → borra su PIN y su foto
 
-import { getDb, cors, leerBody, hashPin, generarPin, revisarAdmin } from "./_db.js";
+import { getDb, cors, leerBody, hashPin, generarPin, revisarAdmin, conLimite } from "./_db.js";
 
 export default async function handler(req, res) {
   cors(res);
@@ -14,9 +14,11 @@ export default async function handler(req, res) {
 
   try {
     const db = await getDb();
-    const admin = await revisarAdmin(db, req.headers["x-admin-pin"]);
-    if (admin.configurado && !admin.ok) {
-      return res.status(401).json({ error: "PIN de administrador incorrecto." });
+    const yaHay = (await revisarAdmin(db, "")).configurado;
+    if (yaHay) {
+      const r = await conLimite(db, req, "admin", async () => (await revisarAdmin(db, req.headers["x-admin-pin"])).ok);
+      if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
+      if (!r.ok) return res.status(401).json({ error: "PIN de administrador incorrecto." });
     }
 
     // Solo dice QUIÉNES ya tienen PIN, nunca cuál es.
@@ -42,6 +44,9 @@ export default async function handler(req, res) {
       if (!jugadorId) return res.status(400).json({ error: "Falta el jugador." });
       await db.collection("pines").deleteOne({ _id: jugadorId });
       await db.collection("fotos").deleteOne({ _id: jugadorId });
+      await db.collection("banners").deleteOne({ _id: jugadorId });
+      // También sus votos (los que emitió y los que recibió).
+      await db.collection("votos").deleteMany({ $or: [{ votanteId: jugadorId }, { votadoId: jugadorId }] });
       return res.status(200).json({ ok: true });
     }
 

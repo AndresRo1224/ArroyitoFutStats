@@ -38,8 +38,16 @@ async function pedir(ruta, opciones = {}) {
   return cuerpo;
 }
 
+// Todo en una sola llamada (y una sola conexión a Atlas).
+export const obtenerTodo = () => pedir("/api/todo");
 export const obtenerDatos = () => pedir("/api/datos");
 export const obtenerFotos = () => pedir("/api/fotos");
+export const obtenerBanners = () => pedir("/api/banners");
+export const obtenerVotos = () => pedir("/api/votos");
+
+// Vota por el MVP de un partido. Lanza Error si el PIN es incorrecto o cerró la votación.
+export const votarMVP = (partidoId, votanteId, pin, votadoId) =>
+  pedir("/api/votos", { method: "POST", body: JSON.stringify({ partidoId, votanteId, pin, votadoId }) });
 
 export const guardarDatos = (datos) =>
   pedir("/api/datos", {
@@ -60,6 +68,10 @@ export const verificarAdmin = (pin) =>
 // Define el PIN de administrador o lo cambia (pinActual solo hace falta si ya había uno).
 export const definirAdmin = (pinNuevo, pinActual) =>
   pedir("/api/admin", { method: "PUT", body: JSON.stringify({ pinNuevo, pinActual }) });
+
+// Elige el banner de perfil de un jugador (verificado con su PIN personal).
+export const elegirBanner = (jugadorId, banner, pin) =>
+  pedir("/api/banners", { method: "POST", body: JSON.stringify({ jugadorId, banner, pin }) });
 
 // Genera (o regenera) el PIN personal de un jugador. Devuelve { pin } en claro
 // una sola vez, para que el administrador se lo pase a esa persona.
@@ -131,6 +143,17 @@ export async function borrarPin(jugadorId) {
   local.escribir(K_PINS, JSON.stringify(pins));
 }
 
+// Verifica el PIN personal en modo local. Lanza Error si no coincide.
+function verificarPinLocal(jugadorId, pin) {
+  const pins = pinsLocales();
+  if (!pins[jugadorId]) {
+    throw new Error("Este jugador todavía no tiene PIN. Pídeselo al administrador del grupo.");
+  }
+  if (pins[jugadorId] !== String(pin)) {
+    throw new Error("PIN incorrecto. Ese perfil solo lo edita su dueño.");
+  }
+}
+
 // Sube (o cambia) la foto de un jugador. Exige el PIN que le dio el administrador.
 // Lanza un Error si el PIN no coincide o si el jugador todavía no tiene PIN.
 export async function subirFoto(jugadorId, data, pin) {
@@ -138,11 +161,14 @@ export async function subirFoto(jugadorId, data, pin) {
     await pedir("/api/fotos", { method: "POST", body: JSON.stringify({ jugadorId, data, pin }) });
     return;
   }
-  const pins = pinsLocales();
-  if (!pins[jugadorId]) {
-    throw new Error("Este jugador todavía no tiene PIN. Pídeselo al administrador del grupo.");
+  verificarPinLocal(jugadorId, pin);
+}
+
+// Guarda el banner elegido (verificado con el PIN personal). Sirve con y sin nube.
+export async function guardarBanner(jugadorId, banner, pin) {
+  if (nubeActiva()) {
+    await elegirBanner(jugadorId, banner, pin);
+    return;
   }
-  if (pins[jugadorId] !== String(pin)) {
-    throw new Error("PIN incorrecto. Esa foto solo la puede cambiar su dueño.");
-  }
+  verificarPinLocal(jugadorId, pin);
 }

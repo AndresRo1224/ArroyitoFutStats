@@ -15,6 +15,7 @@ import SubirFoto from "./screens/SubirFoto";
 import PedirPin from "./screens/PedirPin";
 import MostrarPin from "./screens/MostrarPin";
 import Ajustes from "./screens/Ajustes";
+import ListaPines from "./screens/ListaPines";
 
 const PESTANAS = [
   { id: "tabla", label: "Tabla", icono: Trophy },
@@ -44,6 +45,7 @@ export default function App() {
   const [esAdmin, setEsAdmin] = useState(false);               // este teléfono está autorizado
   const [pedirPin, setPedirPin] = useState(null); // { titulo, texto, accion }
   const [pinNuevo, setPinNuevo] = useState(null); // { nombre, pin } recién generado
+  const [verPines, setVerPines] = useState(false); // lista de PIN para repartir
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
@@ -298,6 +300,8 @@ export default function App() {
                 abrirJugador={setFicha}
                 pedirFoto={setSubir}
                 agregar={agregarJugador}
+                esAdmin={puedeEditar}
+                verPines={() => setVerPines(true)}
               />
             ) : tab === "partidos" ? (
               <Partidos
@@ -338,6 +342,15 @@ export default function App() {
             fotoActual={fotos[jugadorSubiendo.id]}
             onGuardar={guardarFotoJugador}
             onCerrar={() => setSubir(null)}
+          />
+        )}
+
+        {verPines && (
+          <ListaPines
+            jugadores={jugadores}
+            grupo={grupo}
+            avisar={setAviso}
+            cerrar={() => setVerPines(false)}
           />
         )}
 

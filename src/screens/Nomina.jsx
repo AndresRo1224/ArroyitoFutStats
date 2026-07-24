@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { Users, Plus, Camera } from "lucide-react";
+import { Users, Plus, Camera, KeyRound, ChevronRight } from "lucide-react";
 import { C, NUM, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Boton, Vacio } from "../components/ui";
 import { dec1 } from "../lib/util";
 
-export default function Nomina({ jugadores, tabla, agregar, abrirJugador, pedirFoto }) {
+export default function Nomina({ jugadores, tabla, agregar, abrirJugador, pedirFoto, esAdmin, verPines }) {
   const [nombre, setNombre] = useState("");
   const mapa = useMemo(() => Object.fromEntries(tabla.map((t) => [t.id, t])), [tabla]);
 
@@ -62,6 +62,23 @@ export default function Nomina({ jugadores, tabla, agregar, abrirJugador, pedirF
               </div>
             );
           })}
+          {esAdmin && (
+            <button
+              onClick={verPines}
+              className="w-full flex items-center gap-3 rounded-2xl p-3 mt-1 text-left active:scale-[0.99] transition"
+              style={{ background: C.tarjeta, boxShadow: SOMBRA }}
+            >
+              <div className="rounded-xl p-2" style={{ background: `${C.primario}18` }}>
+                <KeyRound size={16} color={C.primario} />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold" style={{ color: C.tinta }}>PIN de los jugadores</div>
+                <div className="text-xs" style={{ color: C.humo }}>Copia o comparte la lista para repartirlos</div>
+              </div>
+              <ChevronRight size={18} color={C.humo} />
+            </button>
+          )}
+
           <div className="text-xs pt-1" style={{ color: C.humo }}>Toca la foto para que cada quien suba la suya con su PIN.</div>
         </div>
       )}

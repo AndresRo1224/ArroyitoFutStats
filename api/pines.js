@@ -19,6 +19,12 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "PIN de administrador incorrecto." });
     }
 
+    // Solo dice QUIÉNES ya tienen PIN, nunca cuál es.
+    if (req.method === "GET") {
+      const docs = await db.collection("pines").find({}, { projection: { _id: 1 } }).toArray();
+      return res.status(200).json({ conPin: docs.map((d) => d._id) });
+    }
+
     if (req.method === "POST") {
       const { jugadorId } = leerBody(req);
       if (!jugadorId) return res.status(400).json({ error: "Falta el jugador." });

@@ -85,6 +85,11 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
    - `POST /api/fotos` verifica contra ese PIN. Si el jugador no tiene PIN registrado, rechaza
      con 403. Esto evita que alguien "reserve" la foto de otro subiéndola primero.
    - Al sacar a alguien de la nómina, `DELETE /api/pines?jugadorId=` borra su PIN y su foto.
+   - Como el servidor solo guarda el hash, el teléfono del administrador lleva una **libreta
+     local** (`localStorage "canchita:pines-vistos"`) con los PIN que él mismo generó. De ahí
+     sale la pantalla `ListaPines` (Nómina → "PIN de los jugadores"), que arma el mensaje para
+     repartirlos y permite generar los que falten. `GET /api/pines` dice **quiénes** tienen PIN,
+     nunca cuál. Si el admin cambia de teléfono, esa libreta se pierde y toca regenerarlos.
    - Sin nube, `src/lib/nube.js` replica la misma lógica contra `localStorage "canchita:pins"`.
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.

@@ -6,6 +6,7 @@ import { API_BASE } from "../config";
 const K_API = "canchita:api";     // override de la URL, editable en Ajustes
 const K_ADMIN = "canchita:admin"; // PIN de administrador para guardar datos
 const K_PINS = "canchita:pins";   // PINs de fotos en modo local (sin nube)
+const K_VISTOS = "canchita:pines-vistos"; // PINs que se generaron desde ESTE teléfono
 
 const local = {
   leer(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -81,22 +82,46 @@ function pinsLocales() {
   try { return JSON.parse(local.leer(K_PINS) || "{}"); } catch { return {}; }
 }
 
+// --- Libreta del administrador ---
+// El servidor solo guarda el hash del PIN, así que no se puede consultar después.
+// Para poder repartirlos, este teléfono anota los PIN que él mismo generó.
+export function pinesRecordados() {
+  try { return JSON.parse(local.leer(K_VISTOS) || "{}"); } catch { return {}; }
+}
+function recordarPin(jugadorId, pin) {
+  const v = pinesRecordados();
+  v[jugadorId] = pin;
+  local.escribir(K_VISTOS, JSON.stringify(v));
+}
+export function olvidarPin(jugadorId) {
+  const v = pinesRecordados();
+  delete v[jugadorId];
+  local.escribir(K_VISTOS, JSON.stringify(v));
+}
+
+// Qué jugadores ya tienen PIN en la nube (solo los ids, nunca el PIN).
+export const quienesTienenPin = () => pedir("/api/pines");
+
 // Genera el PIN personal de un jugador. Devuelve el PIN en claro una sola vez,
 // para que el administrador se lo pase a esa persona. Sirve con y sin nube.
 export async function generarPin(jugadorId) {
+  let pin;
   if (nubeActiva()) {
     const r = await generarPinJugador(jugadorId);
-    return r.pin;
+    pin = r.pin;
+  } else {
+    const pins = pinsLocales();
+    pin = String(Math.floor(1000 + Math.random() * 9000));
+    pins[jugadorId] = pin;
+    local.escribir(K_PINS, JSON.stringify(pins));
   }
-  const pins = pinsLocales();
-  const pin = String(Math.floor(1000 + Math.random() * 9000));
-  pins[jugadorId] = pin;
-  local.escribir(K_PINS, JSON.stringify(pins));
+  recordarPin(jugadorId, pin);
   return pin;
 }
 
 // Al sacar a alguien de la nómina se borra su PIN (y su foto en la nube).
 export async function borrarPin(jugadorId) {
+  olvidarPin(jugadorId);
   if (nubeActiva()) {
     try { await borrarPinJugador(jugadorId); } catch { /* mejor esfuerzo */ }
     return;

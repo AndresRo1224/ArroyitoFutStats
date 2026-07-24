@@ -70,6 +70,14 @@ export function verificarPin(pin, guardado) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// La llave maestra (variable de entorno ADMIN_PIN) es la puerta de emergencia del
+// administrador: salta el límite de intentos, así un atacante no puede dejarlo
+// afuera con un bloqueo (DoS). Manténla larga y secreta.
+export const esMaestra = (pin) => {
+  const m = process.env.ADMIN_PIN;
+  return !!m && String(pin || "") === String(m);
+};
+
 // ¿Quien manda esta petición es el administrador?
 // { configurado, ok }. Si no hay PIN configurado, el grupo está abierto.
 // ADMIN_PIN (variable de entorno) sigue funcionando como llave maestra de rescate.

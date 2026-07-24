@@ -6,7 +6,7 @@
 // POST   /api/pines  { jugadorId }        (cabecera x-admin-pin) → { pin }  genera o regenera
 // DELETE /api/pines?jugadorId=xxx         (cabecera x-admin-pin) → borra su PIN y su foto
 
-import { getDb, cors, leerBody, hashPin, generarPin, revisarAdmin, conLimite } from "./_db.js";
+import { getDb, cors, leerBody, hashPin, generarPin, revisarAdmin, conLimite, esMaestra } from "./_db.js";
 
 export default async function handler(req, res) {
   cors(res);
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   try {
     const db = await getDb();
     const yaHay = (await revisarAdmin(db, "")).configurado;
-    if (yaHay) {
+    if (yaHay && !esMaestra(req.headers["x-admin-pin"])) {
       const r = await conLimite(db, req, "admin", async () => (await revisarAdmin(db, req.headers["x-admin-pin"])).ok);
       if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
       if (!r.ok) return res.status(401).json({ error: "PIN de administrador incorrecto." });

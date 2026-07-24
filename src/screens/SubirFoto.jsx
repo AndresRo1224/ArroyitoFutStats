@@ -1,23 +1,38 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { X, Camera, ShieldCheck, Loader2 } from "lucide-react";
 import { C, SOMBRA_ALTA } from "../tema";
 import { Avatar, Boton, Rotulo } from "../components/ui";
+import { comprimirFoto } from "../lib/util";
 import { nubeActiva } from "../lib/nube";
 
-// La foto ya se eligió ANTES de abrir este modal (flujo "elegir primero"): aquí
-// solo se confirma con el PIN. Tocar la imagen vuelve a abrir el selector.
-export default function SubirFoto({ jugador, fotoInicial, fotoActual, onElegirOtra, onGuardar, onCerrar }) {
+// Modal propio con su selector adentro (mismo patrón que ElegirBanner). Capa alta
+// (z-80) para aparecer por encima de la Ficha. El fondo NO cierra el modal (evita
+// el clic fantasma de Android al volver del selector); se cierra con la X.
+export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) {
+  const [preview, setPreview] = useState(null); // data URL nueva sin guardar
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const inputFoto = useRef(null);
+
+  const elegir = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setError("");
+    try {
+      setPreview(await comprimirFoto(file));
+    } catch {
+      setError("No se pudo leer esa imagen. Prueba con otra.");
+    }
+  };
 
   const guardar = async () => {
-    if (!fotoInicial) return setError("Primero elige una foto.");
+    if (!preview) return setError("Primero elige una foto.");
     if (pin.trim().length < 4) return setError("El PIN debe tener al menos 4 dígitos.");
     setCargando(true);
     setError("");
     try {
-      await onGuardar(fotoInicial, pin.trim());
+      await onGuardar(preview, pin.trim());
       onCerrar();
     } catch (err) {
       setError(err.message || "No se pudo guardar la foto.");
@@ -26,7 +41,7 @@ export default function SubirFoto({ jugador, fotoInicial, fotoActual, onElegirOt
     }
   };
 
-  const fotoMostrada = fotoInicial || fotoActual;
+  const fotoMostrada = preview || fotoActual;
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" style={{ background: "rgba(15,27,45,0.55)" }}>
@@ -39,11 +54,11 @@ export default function SubirFoto({ jugador, fotoInicial, fotoActual, onElegirOt
           <button onClick={onCerrar} className="p-1 active:opacity-60"><X size={22} color={C.humo} /></button>
         </div>
         <div className="text-sm mb-4" style={{ color: C.humo }}>
-          {jugador.nombre}. Pon tu PIN para guardar. Solo con ese PIN se podrá cambiar después.
+          {jugador.nombre}. Elige tu foto y pon un PIN. Solo con ese PIN se podrá cambiar después.
         </div>
 
         <div className="flex flex-col items-center">
-          <button onClick={onElegirOtra} className="relative active:opacity-80">
+          <button onClick={() => inputFoto.current && inputFoto.current.click()} className="relative active:opacity-80">
             {fotoMostrada ? (
               <img src={fotoMostrada} alt="" className="rounded-full object-cover" style={{ width: 110, height: 110, boxShadow: `0 0 0 3px ${C.primario}` }} />
             ) : (
@@ -53,7 +68,7 @@ export default function SubirFoto({ jugador, fotoInicial, fotoActual, onElegirOt
               <Camera size={16} color="#fff" />
             </div>
           </button>
-          <div className="text-xs mt-2" style={{ color: C.humo }}>Toca la foto para elegir otra</div>
+          <div className="text-xs mt-2" style={{ color: C.humo }}>Toca para elegir o tomar una foto</div>
         </div>
 
         <div className="mt-5">
@@ -82,6 +97,8 @@ export default function SubirFoto({ jugador, fotoInicial, fotoActual, onElegirOt
             {cargando ? <><Loader2 size={17} className="animate-spin" /> Subiendo…</> : "Guardar mi foto"}
           </Boton>
         </div>
+
+        <input ref={inputFoto} type="file" accept="image/*" className="hidden" onChange={elegir} />
       </div>
     </div>
   );

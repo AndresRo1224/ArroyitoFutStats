@@ -1,38 +1,23 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { X, Camera, ShieldCheck, Loader2 } from "lucide-react";
 import { C, SOMBRA_ALTA } from "../tema";
 import { Avatar, Boton, Rotulo } from "../components/ui";
-import { comprimirFoto } from "../lib/util";
 import { nubeActiva } from "../lib/nube";
 
-// Modal para que el propio jugador suba/cambie su foto.
-// Pide un PIN: la primera vez lo fija; después ese mismo PIN es necesario para
-// cambiarla, así nadie sube la foto por otra persona.
-export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) {
-  const [preview, setPreview] = useState(null); // data URL nueva sin guardar
+// La foto ya se eligió ANTES de abrir este modal (flujo "elegir primero"): aquí
+// solo se confirma con el PIN. Tocar la imagen vuelve a abrir el selector.
+export default function SubirFoto({ jugador, fotoInicial, fotoActual, onElegirOtra, onGuardar, onCerrar }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
-  const inputFoto = useRef(null);
-
-  const elegir = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    setError("");
-    try {
-      setPreview(await comprimirFoto(file));
-    } catch {
-      setError("No se pudo leer esa imagen. Prueba con otra.");
-    }
-  };
 
   const guardar = async () => {
-    if (!preview) return setError("Primero elige una foto.");
+    if (!fotoInicial) return setError("Primero elige una foto.");
     if (pin.trim().length < 4) return setError("El PIN debe tener al menos 4 dígitos.");
     setCargando(true);
     setError("");
     try {
-      await onGuardar(preview, pin.trim());
+      await onGuardar(fotoInicial, pin.trim());
       onCerrar();
     } catch (err) {
       setError(err.message || "No se pudo guardar la foto.");
@@ -41,11 +26,8 @@ export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) 
     }
   };
 
-  const fotoMostrada = preview || fotoActual;
+  const fotoMostrada = fotoInicial || fotoActual;
 
-  // Ojo: el fondo NO cierra el modal. En Android, al volver del selector de archivos
-  // se dispara un "clic fantasma" que caería en el fondo y cerraría el modal justo
-  // después de elegir la imagen. Se cierra solo con la X.
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" style={{ background: "rgba(15,27,45,0.55)" }}>
       <div
@@ -57,11 +39,11 @@ export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) 
           <button onClick={onCerrar} className="p-1 active:opacity-60"><X size={22} color={C.humo} /></button>
         </div>
         <div className="text-sm mb-4" style={{ color: C.humo }}>
-          {jugador.nombre}. Elige tu foto y pon un PIN. Solo con ese PIN se podrá cambiar después.
+          {jugador.nombre}. Pon tu PIN para guardar. Solo con ese PIN se podrá cambiar después.
         </div>
 
         <div className="flex flex-col items-center">
-          <button onClick={() => inputFoto.current && inputFoto.current.click()} className="relative active:opacity-80">
+          <button onClick={onElegirOtra} className="relative active:opacity-80">
             {fotoMostrada ? (
               <img src={fotoMostrada} alt="" className="rounded-full object-cover" style={{ width: 110, height: 110, boxShadow: `0 0 0 3px ${C.primario}` }} />
             ) : (
@@ -71,14 +53,14 @@ export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) 
               <Camera size={16} color="#fff" />
             </div>
           </button>
-          <div className="text-xs mt-2" style={{ color: C.humo }}>Toca para elegir o tomar una foto</div>
+          <div className="text-xs mt-2" style={{ color: C.humo }}>Toca la foto para elegir otra</div>
         </div>
 
         <div className="mt-5">
           <Rotulo>PIN {fotoActual ? "(el que usaste antes)" : "(elígelo ahora)"}</Rotulo>
           <input
             value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 12))}
             inputMode="numeric"
             placeholder="••••"
             className="w-full mt-2 rounded-xl px-3 py-3 text-center text-lg font-bold tracking-[0.4em] outline-none"
@@ -100,8 +82,6 @@ export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) 
             {cargando ? <><Loader2 size={17} className="animate-spin" /> Subiendo…</> : "Guardar mi foto"}
           </Boton>
         </div>
-
-        <input ref={inputFoto} type="file" accept="image/*" className="hidden" onChange={elegir} />
       </div>
     </div>
   );

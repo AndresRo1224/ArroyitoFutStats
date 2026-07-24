@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, Medal } from "lucide-react";
 import { C, ROTULO, SOMBRA } from "./tema";
 import { FotoCtx, Boton, Rotulo } from "./components/ui";
-import { calcularTabla, calcularTrofeos, filaVacia, uid } from "./lib/util";
+import { calcularTabla, calcularTrofeos, comprimirFoto, filaVacia, uid } from "./lib/util";
 import { K_DATOS, K_FOTOS, K_BANNERS, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
 import * as nube from "./lib/nube";
 import Tabla from "./screens/Tabla";
@@ -56,6 +56,8 @@ export default function App() {
   const [bannerJugador, setBannerJugador] = useState(null); // jugador que cambia banner
 
   const inputRespaldo = useRef(null);
+  const inputFotoJugador = useRef(null);
+  const objetivoFoto = useRef(null);
   const primeraCarga = useRef(true);
   // Solo se empuja a la nube lo que se cambió DESDE ESTE teléfono. Sin esto, al
   // cargar los datos del servidor se reenviaban de vuelta, y un visitante sin
@@ -196,8 +198,28 @@ export default function App() {
   const statsDe = (id) => tabla.find((t) => t.id === id) || filaVacia;
   const ultimoPartido = partidos[0];
 
+  // Flujo "elegir primero": tocar la foto abre el selector de una; cuando ya hay
+  // imagen elegida, se abre el modal con la foto puesta para poner el PIN y guardar.
+  const pedirFotoJugador = (id) => {
+    objetivoFoto.current = id;
+    if (inputFotoJugador.current) {
+      inputFotoJugador.current.value = "";
+      inputFotoJugador.current.click();
+    }
+  };
+  const alElegirFotoArchivo = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file || !objetivoFoto.current) return;
+    try {
+      const data = await comprimirFoto(file);
+      setSubir({ id: objetivoFoto.current, data });
+    } catch {
+      setAviso("No se pudo leer esa imagen. Prueba con otra.");
+    }
+  };
+
   const guardarFotoJugador = async (data, pin) => {
-    const id = subir;
+    const id = subir.id;
     await nube.subirFoto(id, data, pin); // lanza error si el PIN no coincide
     setFotos((f) => ({ ...f, [id]: data }));
   };
@@ -273,7 +295,7 @@ export default function App() {
     }
   };
 
-  const jugadorSubiendo = subir ? jugadores.find((j) => j.id === subir) : null;
+  const jugadorSubiendo = subir ? jugadores.find((j) => j.id === subir.id) : null;
 
   return (
     <FotoCtx.Provider value={fotos}>
@@ -332,7 +354,7 @@ export default function App() {
                 jugadores={jugadores}
                 tabla={tabla}
                 abrirJugador={setFicha}
-                pedirFoto={setSubir}
+                pedirFoto={pedirFotoJugador}
                 agregar={agregarJugador}
                 esAdmin={puedeEditar}
                 verPines={() => setVerPines(true)}
@@ -373,11 +395,14 @@ export default function App() {
         </div>
 
         <input ref={inputRespaldo} type="file" accept="application/json" className="hidden" onChange={importar} />
+        <input ref={inputFotoJugador} type="file" accept="image/*" className="hidden" onChange={alElegirFotoArchivo} />
 
         {jugadorSubiendo && (
           <SubirFoto
             jugador={jugadorSubiendo}
+            fotoInicial={subir.data}
             fotoActual={fotos[jugadorSubiendo.id]}
+            onElegirOtra={() => pedirFotoJugador(subir.id)}
             onGuardar={guardarFotoJugador}
             onCerrar={() => setSubir(null)}
           />

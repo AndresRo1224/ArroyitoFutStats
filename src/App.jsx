@@ -161,9 +161,17 @@ export default function App() {
               className="rounded-2xl flex items-center justify-center"
               style={{ width: 38, height: 38, background: `linear-gradient(140deg, ${C.primario}, ${C.primarioOsc})`, boxShadow: "0 4px 12px rgba(18,161,80,0.3)" }}
             >
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7l3.5 2.5-1.3 4.2h-4.4L8.5 9.5z" fill="#fff" stroke="none" />
+              {/* Mismo balón del ícono de la app: pentágono central y costuras. */}
+              <svg width="22" height="22" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" fill="#fff" />
+                <g stroke={C.primarioOsc} strokeWidth="1.3" strokeLinecap="round">
+                  <line x1="12" y1="8.6" x2="12" y2="5" />
+                  <line x1="15.23" y1="10.95" x2="18.66" y2="9.84" />
+                  <line x1="14" y1="14.75" x2="16.12" y2="17.66" />
+                  <line x1="10" y1="14.75" x2="7.88" y2="17.66" />
+                  <line x1="8.77" y1="10.95" x2="5.34" y2="9.84" />
+                </g>
+                <polygon points="12,8.6 15.23,10.95 14,14.75 10,14.75 8.77,10.95" fill={C.primarioOsc} />
               </svg>
             </div>
             <div className="flex-1 min-w-0">

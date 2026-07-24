@@ -82,17 +82,25 @@ export const LIM = {
   nombre: 60,
   jugadores: 300,
   partidos: 2000,
-  banner: 32,
+  banner: 32,           // id de diseño de la galería
+  bannerImg: 600 * 1024, // foto de banner propia (la app comprime a ~40 KB)
 };
+
+// El banner es un id de diseño (letras) o una foto propia (data:image, con tope).
+export const bannerValido = (v) =>
+  typeof v === "string" &&
+  ((/^[a-z]+$/.test(v) && v.length <= LIM.banner) ||
+    (/^data:image\//.test(v) && v.length <= LIM.bannerImg));
 
 // Saneo estructural de los datos del grupo: reconstruye solo con campos y tipos
 // permitidos, descartando cualquier objeto/operador malicioso o basura.
 export function sanearDatos(body) {
-  const nJug = (n) => (typeof n === "string" ? n.slice(0, LIM.nombre) : "");
+  // Se exige id válido y nombre de texto; el nombre se RECORTA (no se descarta al
+  // jugador por ser largo).
   const jugadores = (Array.isArray(body.jugadores) ? body.jugadores : [])
     .slice(0, LIM.jugadores)
-    .filter((j) => j && idValido(j.id) && esTexto(j.nombre, LIM.nombre))
-    .map((j) => ({ id: j.id, nombre: nJug(j.nombre) }));
+    .filter((j) => j && idValido(j.id) && typeof j.nombre === "string" && j.nombre.trim())
+    .map((j) => ({ id: j.id, nombre: j.nombre.slice(0, LIM.nombre) }));
 
   const numMap = (o) => {
     const out = {};

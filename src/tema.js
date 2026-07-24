@@ -83,7 +83,12 @@ export const BANNERS = [
 ];
 
 export const BANNER_POR_DEFECTO = "cancha";
-export const bannerCss = (id) => (BANNERS.find((b) => b.id === id) || BANNERS[0]).css;
+// El banner puede ser un diseño de la galería (id) o una foto propia (data URL).
+export const esBannerImagen = (v) => typeof v === "string" && v.startsWith("data:");
+export const bannerCss = (id) => {
+  if (esBannerImagen(id)) return `center/cover no-repeat url("${id}")`;
+  return (BANNERS.find((b) => b.id === id) || BANNERS[0]).css;
+};
 
 // Sombras de elevación para las tarjetas.
 export const SOMBRA = "0 1px 2px rgba(15,27,45,0.06), 0 2px 8px rgba(15,27,45,0.06)";

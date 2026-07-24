@@ -1,16 +1,31 @@
-import React, { useState } from "react";
-import { X, Check, Loader2, Image } from "lucide-react";
-import { C, BANNERS, SOMBRA_ALTA } from "../tema";
+import React, { useRef, useState } from "react";
+import { X, Check, Loader2, Image, Upload } from "lucide-react";
+import { C, BANNERS, bannerCss, esBannerImagen, SOMBRA_ALTA } from "../tema";
 import { Boton, Rotulo } from "../components/ui";
+import { comprimirBanner } from "../lib/util";
 import { nubeActiva } from "../lib/nube";
 
-// El propio jugador elige el banner de su perfil, protegido con su PIN personal
-// (el mismo de la foto).
+// El propio jugador elige el banner de su perfil: un diseño de la galería o una
+// FOTO PROPIA que sube. Protegido con su PIN personal (el mismo de la foto).
 export default function ElegirBanner({ jugador, actual, onGuardar, onCerrar }) {
   const [elegido, setElegido] = useState(actual || BANNERS[0].id);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const inputFoto = useRef(null);
+
+  const propia = esBannerImagen(elegido); // ¿el elegido es una foto subida?
+
+  const subir = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setError("");
+    try {
+      setElegido(await comprimirBanner(file));
+    } catch {
+      setError("No se pudo leer esa imagen. Prueba con otra.");
+    }
+  };
 
   const guardar = async () => {
     if (pin.trim().length < 4) return setError("Escribe tu PIN.");
@@ -43,10 +58,23 @@ export default function ElegirBanner({ jugador, actual, onGuardar, onCerrar }) {
           <button onClick={onCerrar} className="p-1 active:opacity-60"><X size={22} color={C.humo} /></button>
         </div>
         <div className="text-sm mb-3" style={{ color: C.humo }}>
-          {jugador.nombre}. Elige el fondo de tu perfil y confirma con tu PIN.
+          {jugador.nombre}. Sube tu propia foto o elige un diseño, y confirma con tu PIN.
         </div>
 
-        <div className="grid grid-cols-3 gap-2 max-h-[38vh] overflow-y-auto pr-0.5">
+        {/* Vista previa del elegido */}
+        <div className="rounded-2xl h-24 w-full mb-3" style={{ background: bannerCss(elegido), boxShadow: `inset 0 0 0 1px ${C.linea}` }} />
+
+        {/* Subir foto propia */}
+        <button
+          onClick={() => inputFoto.current && inputFoto.current.click()}
+          className="w-full flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-sm mb-3 active:scale-[0.98] transition"
+          style={{ background: propia ? C.primario : C.tarjeta2, color: propia ? C.sobrePrimario : C.tinta }}
+        >
+          <Upload size={16} /> {propia ? "Cambiar mi foto de banner" : "Subir mi propia foto"}
+        </button>
+
+        <Rotulo>O elige un diseño</Rotulo>
+        <div className="grid grid-cols-3 gap-2 mt-2 max-h-[30vh] overflow-y-auto pr-0.5">
           {BANNERS.map((b) => (
             <button
               key={b.id}
@@ -54,7 +82,7 @@ export default function ElegirBanner({ jugador, actual, onGuardar, onCerrar }) {
               className="rounded-xl overflow-hidden transition active:scale-[0.97]"
               style={{ boxShadow: elegido === b.id ? `0 0 0 2.5px ${C.primario}` : `inset 0 0 0 1px ${C.linea}` }}
             >
-              <div className="h-12 w-full relative" style={{ background: b.css }}>
+              <div className="h-10 w-full relative" style={{ background: b.css }}>
                 {elegido === b.id && (
                   <div className="absolute top-1 right-1 rounded-full p-0.5" style={{ background: C.primario }}>
                     <Check size={11} color="#fff" strokeWidth={3.5} />
@@ -88,6 +116,8 @@ export default function ElegirBanner({ jugador, actual, onGuardar, onCerrar }) {
             {cargando ? <><Loader2 size={17} className="animate-spin" /> Guardando…</> : "Guardar banner"}
           </Boton>
         </div>
+
+        <input ref={inputFoto} type="file" accept="image/*" className="hidden" onChange={subir} />
       </div>
     </div>
   );

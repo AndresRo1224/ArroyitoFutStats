@@ -69,6 +69,30 @@ export function comprimirFoto(file, lado = 240, calidad = 0.72) {
   });
 }
 
+// Banner de portada: se recorta a un rectángulo ancho (tipo cover de red social).
+export function comprimirBanner(file, ancho = 800, alto = 280, calidad = 0.72) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement("canvas");
+        cv.width = ancho;
+        cv.height = alto;
+        const ctx = cv.getContext("2d");
+        const escala = Math.max(ancho / img.width, alto / img.height);
+        const w = img.width * escala, h = img.height * escala;
+        ctx.drawImage(img, (ancho - w) / 2, (alto - h) / 2, w, h);
+        resolve(cv.toDataURL("image/jpeg", calidad));
+      };
+      img.onerror = reject;
+      img.src = fr.result;
+    };
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
 // Tabla general.
 //  - prom = (goles + asistencias) / partidos jugados (dato crudo)
 //  - nota = promedio de las notas de cada partido, en escala 0-10

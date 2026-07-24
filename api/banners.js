@@ -4,7 +4,7 @@
 // GET  /api/banners → { [jugadorId]: "idDiseño" }
 // POST /api/banners { jugadorId, banner, pin }
 
-import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, esTexto, LIM, auditar } from "./_db.js";
+import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, bannerValido, auditar } from "./_db.js";
 
 export default async function handler(req, res) {
   cors(req, res);
@@ -23,8 +23,8 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       const { jugadorId, banner, pin } = leerBody(req);
-      if (!idValido(jugadorId) || !pinValido(pin) || !esTexto(banner, LIM.banner) || !/^[a-z]+$/.test(banner)) {
-        return res.status(400).json({ error: "Datos inválidos." });
+      if (!idValido(jugadorId) || !pinValido(pin) || !bannerValido(banner)) {
+        return res.status(400).json({ error: "Datos inválidos o imagen demasiado grande." });
       }
       const registro = await db.collection("pines").findOne({ _id: jugadorId });
       if (!registro || !registro.pinHash) {
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
         { $set: { banner, actualizado: new Date() } },
         { upsert: true }
       );
-      await auditar(db, "banner", req, { jugadorId, banner });
+      await auditar(db, "banner", req, { jugadorId, tipo: banner.startsWith("data:") ? "foto" : banner });
       return res.status(200).json({ ok: true });
     }
 

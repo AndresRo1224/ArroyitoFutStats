@@ -29,7 +29,7 @@ export default function SubirFoto({ jugador, fotoInicial, fotoActual, onElegirOt
   const fotoMostrada = fotoInicial || fotoActual;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" style={{ background: "rgba(15,27,45,0.55)" }}>
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" style={{ background: "rgba(15,27,45,0.55)" }}>
       <div
         className="w-full rounded-t-3xl sm:rounded-3xl p-5"
         style={{ background: C.fondo, maxWidth: 448, boxShadow: SOMBRA_ALTA, paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}

@@ -227,21 +227,31 @@ export default function Ruleta({ jugadores, tabla, ultimoPartido }) {
   if (!equipos) {
     const cupo = nEquipos * porEquipo;
     const sobran = Math.max(0, sel.length - cupo);
+    const todos = jugadores.length > 0 && sel.length === jugadores.length;
     const opcionesEquipos = Array.from({ length: MAX_EQUIPOS - 1 }, (_, i) => i + 2);
 
     return (
       <div className="pb-6">
-        <div className="px-4 pt-4 flex items-center justify-between mb-3">
+        <div className="px-4 pt-4 flex items-center justify-between gap-3 mb-3">
           <Rotulo>¿Quiénes juegan hoy? · {sel.length}</Rotulo>
-          {ultimoPartido && (
+          <div className="flex items-center gap-3 shrink-0">
+            {ultimoPartido && (
+              <button
+                onClick={() => setSel(ultimoPartido.att.filter((id) => nombreDe[id]))}
+                className="text-xs font-bold active:opacity-60"
+                style={{ color: C.primario }}
+              >
+                Copiar del último
+              </button>
+            )}
             <button
-              onClick={() => setSel(ultimoPartido.att.filter((id) => nombreDe[id]))}
-              className="text-xs font-bold"
+              onClick={() => setSel(todos ? [] : jugadores.map((j) => j.id))}
+              className="text-xs font-bold active:opacity-60"
               style={{ color: C.primario }}
             >
-              Copiar del último
+              {todos ? "Quitar todos" : "Todos"}
             </button>
-          )}
+          </div>
         </div>
         <div className="px-4">
           <RejillaAsistencia jugadores={jugadores} seleccion={sel} alternar={alternar} />

@@ -21,7 +21,7 @@ export function Avatar({ id, nombre, tam = 40, borde }) {
       className="rounded-full flex items-center justify-center shrink-0"
       style={{
         ...estilo,
-        background: `linear-gradient(140deg, ${C.tarjeta2}, #E4EAF2)`,
+        background: `linear-gradient(140deg, ${C.tarjeta2}, ${C.linea})`,
         color: C.humo,
         fontSize: tam * 0.36,
         fontWeight: 800,

@@ -39,7 +39,7 @@ export default function FichaJugador({ jugador, stats, partidos, cerrar, renombr
 
         <div
           className="mt-5 rounded-2xl p-4 flex items-center justify-between"
-          style={{ background: `linear-gradient(135deg, #FFFFFF, ${C.primario}14)`, boxShadow: `${SOMBRA}, inset 0 0 0 1.5px ${C.primario}33` }}
+          style={{ background: `linear-gradient(135deg, ${C.tarjeta}, ${C.primario}14)`, boxShadow: `${SOMBRA}, inset 0 0 0 1.5px ${C.primario}33` }}
         >
           <div>
             <Rotulo>Valoración</Rotulo>

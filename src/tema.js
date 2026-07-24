@@ -2,24 +2,48 @@
 // Fondo claro, tarjetas blancas con sombra suave, verde césped como color primario
 // y números en tipografía tabular (no monoespaciada).
 
+// Las superficies y el texto salen de variables CSS (ver index.css), así el modo
+// claro/oscuro se cambia con un atributo en <html> sin re-renderizar nada. Los
+// acentos (verde, dorado, rojo) van en hex porque a veces se les concatena
+// transparencia (p. ej. `${C.primario}18`) y sirven igual en ambos temas.
 export const C = {
-  // Superficies
-  fondo: "#EDF1F6",     // fondo general de la app
-  tarjeta: "#FFFFFF",   // tarjetas y paneles
-  tarjeta2: "#F1F4F9",  // superficie interior sutil (chips, celdas)
-  linea: "#E3E8EF",     // bordes y separadores
+  // Superficies (cambian con el tema)
+  marco: "var(--marco)",       // el fondo detrás de la columna de 448px
+  fondo: "var(--fondo)",       // fondo general de la app
+  tarjeta: "var(--tarjeta)",   // tarjetas y paneles
+  tarjeta2: "var(--tarjeta2)", // superficie interior sutil (chips, celdas)
+  linea: "var(--linea)",       // bordes y separadores
 
-  // Texto
-  tinta: "#0F1B2D",     // texto principal (casi negro)
-  humo: "#647087",      // texto secundario / rótulos
+  // Texto (cambia con el tema)
+  tinta: "var(--tinta)",       // texto principal
+  humo: "var(--humo)",         // texto secundario / rótulos
 
-  // Marca
-  primario: "#12A150",  // verde césped: acción principal
-  primarioOsc: "#0C7F3E",
+  // Marca (iguales en ambos temas)
+  primario: "#12A150",         // verde césped: acción principal
+  primarioOsc: "var(--primario-osc)", // verde para texto sobre tinte claro/oscuro
   sobrePrimario: "#FFFFFF",
-  oro: "#F5A524",       // dorado: bota de oro y destacados
-  alerta: "#EF4444",    // rojo: acciones destructivas
+  oro: "#F5A524",              // dorado: bota de oro y destacados
+  alerta: "#EF4444",           // rojo: acciones destructivas
 };
+
+// --- Modo claro / oscuro ---
+const K_TEMA = "canchita:tema";
+const COLOR_BARRA = { claro: "#FFFFFF", oscuro: "#1A212C" };
+
+export function temaGuardado() {
+  try { return localStorage.getItem(K_TEMA) === "oscuro" ? "oscuro" : "claro"; } catch { return "claro"; }
+}
+
+export function aplicarTema(modo) {
+  const t = modo === "oscuro" ? "oscuro" : "claro";
+  try {
+    document.documentElement.setAttribute("data-tema", t);
+    localStorage.setItem(K_TEMA, t);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", COLOR_BARRA[t]);
+  } catch {}
+  return t;
+}
 
 // Los equipos se nombran por el color del peto, como en la cancha.
 // `texto` es el color legible encima de ese peto.

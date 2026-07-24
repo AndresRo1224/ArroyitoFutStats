@@ -243,7 +243,7 @@ export default function App() {
 
   return (
     <FotoCtx.Provider value={fotos}>
-      <div className="w-full flex justify-center" style={{ background: "#DCE3EC", minHeight: "100vh" }}>
+      <div className="w-full flex justify-center" style={{ background: C.marco, minHeight: "100vh" }}>
         <div
           className="w-full flex flex-col"
           style={{
@@ -470,7 +470,7 @@ export default function App() {
           <button
             onClick={() => setAviso("")}
             className="fixed left-0 right-0 z-[70] mx-auto px-4 py-3 rounded-2xl text-sm font-semibold"
-            style={{ bottom: 84, maxWidth: 380, background: C.tinta, color: "#fff", boxShadow: "0 8px 24px rgba(15,27,45,0.3)" }}
+            style={{ bottom: 84, maxWidth: 380, background: C.tinta, color: C.fondo, boxShadow: "0 8px 24px rgba(15,27,45,0.3)" }}
           >
             {aviso}
           </button>

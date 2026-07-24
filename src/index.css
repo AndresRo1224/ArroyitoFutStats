@@ -2,9 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-/* color-scheme light: la app es clara y el selector de fecha nativo sale claro */
-:root {
+/* Paleta clara (por defecto) y oscura. La app cambia entre ambas poniendo
+   data-tema="oscuro" en <html>; los componentes leen estas variables por style. */
+:root,
+:root[data-tema="claro"] {
+  --marco: #dce3ec;
+  --fondo: #edf1f6;
+  --tarjeta: #ffffff;
+  --tarjeta2: #f1f4f9;
+  --linea: #e3e8ef;
+  --tinta: #0f1b2d;
+  --humo: #647087;
+  --primario-osc: #0c7f3e;
   color-scheme: light;
+}
+
+:root[data-tema="oscuro"] {
+  --marco: #05070b;
+  --fondo: #0f141c;
+  --tarjeta: #1a212c;
+  --tarjeta2: #232c3a;
+  --linea: #2c3542;
+  --tinta: #eaf0f7;
+  --humo: #93a0b4;
+  --primario-osc: #4ade80;
+  color-scheme: dark;
 }
 
 html,
@@ -15,7 +37,7 @@ body,
 
 body {
   margin: 0;
-  background: #dce3ec;
+  background: var(--marco);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }

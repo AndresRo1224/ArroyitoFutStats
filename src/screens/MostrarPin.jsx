@@ -51,7 +51,7 @@ export default function MostrarPin({ nombre, pin, onCerrar }) {
 
         <div
           className="mt-3 rounded-xl p-3 text-xs"
-          style={{ background: `${C.oro}1A`, color: "#7A4B04", border: `1px solid ${C.oro}55` }}
+          style={{ background: `${C.oro}1A`, color: C.tinta, border: `1px solid ${C.oro}55` }}
         >
           Anótalo ahora: por seguridad no se vuelve a mostrar. Si se pierde, puedes generar
           uno nuevo desde la ficha del jugador.

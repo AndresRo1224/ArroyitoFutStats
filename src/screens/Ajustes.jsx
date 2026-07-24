@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import {
   X, ArrowLeft, RefreshCw, ChevronRight, KeyRound, Lock, Unlock,
-  ShieldCheck, LogOut, Download, Upload, Trash2,
+  ShieldCheck, LogOut, Download, Upload, Trash2, Sun, Moon,
 } from "lucide-react";
-import { C, SOMBRA } from "../tema";
+import { C, SOMBRA, aplicarTema, temaGuardado } from "../tema";
 import { Boton, Rotulo } from "../components/ui";
 import * as nube from "../lib/nube";
 
@@ -50,6 +50,9 @@ export default function Ajustes({
   const [pinActual, setPinActual] = useState("");
   const [pinNuevo, setPinNuevo] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [tema, setTema] = useState(temaGuardado());
+
+  const cambiarTema = (modo) => { setTema(aplicarTema(modo)); };
 
   const campo = { background: C.tarjeta2, color: C.tinta, border: `1px solid ${C.linea}` };
 
@@ -269,6 +272,32 @@ export default function Ajustes({
               derecha={<ChevronRight size={18} color={C.humo} />}
             />
           )}
+        </Seccion>
+
+        <Seccion titulo="Apariencia">
+          <div className="p-2.5">
+            <div className="flex gap-2">
+              {[
+                { id: "claro", label: "Claro", Ico: Sun },
+                { id: "oscuro", label: "Oscuro", Ico: Moon },
+              ].map(({ id, label, Ico }) => {
+                const on = tema === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => cambiarTema(id)}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-sm transition active:scale-[0.98]"
+                    style={{
+                      background: on ? C.primario : C.tarjeta2,
+                      color: on ? C.sobrePrimario : C.humo,
+                    }}
+                  >
+                    <Ico size={17} /> {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </Seccion>
 
         <Seccion titulo="Respaldo" nota="Guarda una copia de todo, incluidas las fotos.">

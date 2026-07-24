@@ -59,7 +59,7 @@ export default function Tabla({ jugadores, partidos, tabla, abrirJugador, irA })
           <button
             onClick={() => abrirJugador(goleador.id)}
             className="w-full mt-2 rounded-2xl p-4 flex items-center gap-4 text-left active:scale-[0.99] transition"
-            style={{ background: `linear-gradient(135deg, #FFFFFF, #FFF7E8)`, boxShadow: `${SOMBRA}, inset 0 0 0 1.5px ${C.oro}55` }}
+            style={{ background: `linear-gradient(135deg, ${C.tarjeta}, ${C.oro}1A)`, boxShadow: `${SOMBRA}, inset 0 0 0 1.5px ${C.oro}55` }}
           >
             <div className="relative">
               <Avatar id={goleador.id} nombre={goleador.nombre} tam={64} borde={C.oro} />

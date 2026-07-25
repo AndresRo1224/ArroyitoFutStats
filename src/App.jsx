@@ -14,7 +14,7 @@ import EditorPartido from "./screens/EditorPartido";
 import FichaJugador from "./screens/FichaJugador";
 import SubirFoto from "./screens/SubirFoto";
 import ElegirBanner from "./screens/ElegirBanner";
-import VotarMVP from "./screens/VotarMVP";
+import DetallePartido from "./screens/DetallePartido";
 import PedirPin from "./screens/PedirPin";
 import MostrarPin from "./screens/MostrarPin";
 import Ajustes from "./screens/Ajustes";
@@ -222,6 +222,7 @@ export default function App() {
   const votar = async (partidoId, votanteId, pin, votadoId) => {
     const res = await nube.votarMVP(partidoId, votanteId, pin, votadoId); // lanza si falla
     setVotos((v) => ({ ...v, [partidoId]: res }));
+    setAviso("¡Voto registrado! 🗳️");
   };
 
   const guardarPartido = (p) =>
@@ -426,6 +427,7 @@ export default function App() {
         {editor && (
           <EditorPartido
             inicial={editor.p}
+            pasoInicial={editor.paso}
             jugadores={jugadores}
             ultimoPartido={ultimoPartido}
             guardar={guardarPartido}
@@ -464,14 +466,16 @@ export default function App() {
         )}
 
         {votarPartido && partidos.some((p) => p.id === votarPartido.id) && (
-          <VotarMVP
+          <DetallePartido
             partido={partidos.find((p) => p.id === votarPartido.id)}
             jugadores={jugadores}
             votos={votos[votarPartido.id]}
             onVotar={votar}
-            onCerrar={() => setVotarPartido(null)}
             esAdmin={puedeEditar}
-            onEditar={() => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p }); }}
+            onEditarAsistencia={() => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p, paso: 1 }); }}
+            onEditarDatos={() => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p, paso: 2 }); }}
+            onBorrar={() => setConfirmar({ tipo: "partido", id: votarPartido.id })}
+            onCerrar={() => setVotarPartido(null)}
           />
         )}
 
@@ -509,12 +513,14 @@ export default function App() {
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" style={{ background: "rgba(15,27,45,0.55)" }}>
             <div className="w-full rounded-3xl p-5" style={{ background: C.tarjeta, maxWidth: 340, boxShadow: SOMBRA }}>
               <div className="font-extrabold text-base" style={{ color: C.tinta }}>
-                {confirmar.tipo === "todo" ? "¿Borrar todo?" : "¿Sacar a este jugador?"}
+                {confirmar.tipo === "todo" ? "¿Borrar todo?" : confirmar.tipo === "partido" ? "¿Borrar este partido?" : "¿Sacar a este jugador?"}
               </div>
               <div className="text-sm mt-2" style={{ color: C.humo }}>
                 {confirmar.tipo === "todo"
                   ? "Se eliminan jugadores, partidos y fotos. Esto no se puede deshacer."
-                  : "Se borra de la nómina y de la tabla. Los partidos ya registrados conservan sus goles."}
+                  : confirmar.tipo === "partido"
+                    ? "Se elimina el partido con sus goles, asistencias y votación. Esto no se puede deshacer."
+                    : "Se borra de la nómina y de la tabla. Los partidos ya registrados conservan sus goles."}
               </div>
               <div className="flex gap-2 mt-5">
                 <div className="flex-1">
@@ -526,6 +532,12 @@ export default function App() {
                       conPermiso("Borrar todos los datos", () => {
                         setJugadores([]); setPartidos([]); setFotos({});
                         setConfirmar(null); setAjustes(false); setTab("tabla");
+                      });
+                    } else if (confirmar.tipo === "partido") {
+                      conPermiso("Borrar partido", () => {
+                        setPartidos((ps) => ps.filter((x) => x.id !== confirmar.id));
+                        setConfirmar(null);
+                        setVotarPartido(null);
                       });
                     } else {
                       borrarJugador(confirmar.id);

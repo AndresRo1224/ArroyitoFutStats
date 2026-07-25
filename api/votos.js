@@ -68,8 +68,10 @@ export default async function handler(req, res) {
         { upsert: true }
       );
 
+      // Devuelve SOLO el resumen de este partido ({conteo, votantes}), no anidado
+      // por id — así el cliente detecta el voto y muestra la confirmación.
       const docs = await col.find({ partidoId }).toArray();
-      return res.status(200).json(agrupar(docs));
+      return res.status(200).json(agrupar(docs)[partidoId] || { conteo: {}, votantes: [] });
     }
 
     return res.status(405).json({ error: "Método no permitido." });

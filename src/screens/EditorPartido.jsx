@@ -4,14 +4,14 @@ import { C, PETOS, NUM, ROTULO, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Boton, RejillaAsistencia } from "../components/ui";
 import { domingoMasReciente, fechaLarga, uid } from "../lib/util";
 
-export default function EditorPartido({ inicial, jugadores, ultimoPartido, guardar, borrar, cerrar }) {
+export default function EditorPartido({ inicial, jugadores, ultimoPartido, guardar, borrar, cerrar, pasoInicial }) {
   const vivos = useMemo(() => new Set(jugadores.map((j) => j.id)), [jugadores]);
   const [fecha, setFecha] = useState(inicial ? inicial.fecha : domingoMasReciente());
   const [att, setAtt] = useState(inicial ? inicial.att.filter((id) => vivos.has(id)) : []);
   const [g, setG] = useState(inicial ? { ...inicial.g } : {});
   const [a, setA] = useState(inicial ? { ...inicial.a } : {});
   const [at, setAt] = useState(inicial ? { ...inicial.at } : {}); // atajadas
-  const [paso, setPaso] = useState(inicial ? 2 : 1);
+  const [paso, setPaso] = useState(pasoInicial || (inicial ? 2 : 1));
 
   const nombreDe = Object.fromEntries(jugadores.map((j) => [j.id, j.nombre]));
   const alternar = (id) => setAtt((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -21,7 +21,7 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
   return (
     <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: C.fondo }}>
       <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: C.tarjeta, boxShadow: SOMBRA }}>
-        <button onClick={paso === 2 && !inicial ? () => setPaso(1) : cerrar} className="p-1 active:opacity-60">
+        <button onClick={paso === 2 && pasoInicial !== 2 ? () => setPaso(1) : cerrar} className="p-1 active:opacity-60">
           <ArrowLeft size={22} color={C.tinta} />
         </button>
         <div className="flex-1">

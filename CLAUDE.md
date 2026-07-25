@@ -113,20 +113,22 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
    - Sin nube, `src/lib/nube.js` replica la misma lógica contra `localStorage "canchita:pins"`.
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.
-- **Cambio del PIN por correo (Brevo):** el jugador escribe su correo **en el momento** (no se
-  registra en la app) y, como candado, **su PIN actual**: sin el PIN actual correcto no se
-  envía el código, así nadie resetea el PIN de otro poniendo un correo cualquiera. Flujo:
+- **Cambio del PIN por correo (Gmail SMTP):** el jugador escribe su correo **en el momento**
+  (no se registra en la app) y, como candado, **su PIN actual**: sin el PIN actual correcto no
+  se envía el código, así nadie resetea el PIN de otro poniendo un correo cualquiera. Flujo:
   `POST /api/reset {jugadorId, email, pinActual}` verifica el PIN actual (con `conLimite`) y
   manda un código de 6 dígitos a ese correo; `POST /api/reset {jugadorId, codigo, pinNuevo}`
   confirma y fija el PIN nuevo. Código de 6 dígitos, 10 min, colección `reset` con TTL, límite
-  de intentos, anti-reenvío (60s) y límite de envíos por IP. El envío usa Brevo
-  (`api/_correo.js`). Quien **de verdad** olvidó su PIN no puede usar este flujo: el admin lo
-  regenera desde la ficha. Entradas en la app: enlace "¿Olvidaste tu PIN?" en la ficha,
-  SubirFoto y ElegirBanner; pantalla `ResetPin`.
+  de intentos, anti-reenvío (60s) y límite de envíos por IP. El envío usa **nodemailer** contra
+  el SMTP de Gmail (`api/_correo.js`, `smtp.gmail.com:465`). Quien **de verdad** olvidó su PIN
+  no puede usar este flujo: el admin lo regenera desde la ficha. Entradas en la app: enlace
+  "¿Olvidaste tu PIN?" en la ficha, SubirFoto y ElegirBanner; pantalla `ResetPin`.
 - Variables de entorno del backend: `MONGODB_URI` (obligatoria), `MONGODB_DB` (opc., default
   "canchita"), `ADMIN_PIN` (opc.), `SESSION_SECRET` (opc., recomendada), y para el reseteo por
-  correo `BREVO_API_KEY` + `CORREO_REMITENTE` (el remitente verificado en Brevo). Se configuran
-  en Vercel → Settings → Environment Variables; tras cambiarlas hay que **redesplegar**.
+  correo `GMAIL_USER` (el Gmail dedicado) + `GMAIL_APP_PASSWORD` (la "Contraseña de aplicación"
+  de 16 caracteres de Google, tras activar la Verificación en 2 pasos — NO la contraseña
+  normal). Se configuran en Vercel → Settings → Environment Variables; tras cambiarlas hay que
+  **redesplegar**.
 - Despliegue actual: **https://arroyito-fut-stats.vercel.app** (repo
   `AndresRo1224/ArroyitoFutStats`). `src/config.js` ya apunta ahí.
 - Diagnóstico rápido del backend: `GET /api/ping` responde `{"ok":true,"nube":true}` cuando

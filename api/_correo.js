@@ -1,7 +1,11 @@
-// Envío de correos con Brevo (transaccional). Se usa para mandar el código de
-// reseteo del PIN. Requiere en Vercel:
-//   BREVO_API_KEY      = la API key de Brevo
-//   CORREO_REMITENTE   = el correo remitente verificado en Brevo (p. ej. tu Gmail)
+// Envío de correos con el Gmail dedicado (SMTP vía nodemailer). Se usa para mandar
+// el código de reseteo del PIN. Requiere en Vercel:
+//   GMAIL_USER          = el Gmail dedicado (p. ej. arroyitofutstats@gmail.com)
+//   GMAIL_APP_PASSWORD  = la "Contraseña de aplicación" de 16 caracteres que da Google
+//                          (Cuenta de Google → Seguridad → Verificación en 2 pasos →
+//                           Contraseñas de aplicaciones). NO es la contraseña normal.
+
+import nodemailer from "nodemailer";
 
 export function enmascararCorreo(e) {
   if (typeof e !== "string" || !e.includes("@")) return "";
@@ -10,26 +14,38 @@ export function enmascararCorreo(e) {
   return `${ini}${"*".repeat(Math.max(3, loc.length - ini.length))}@${dom}`;
 }
 
-export async function enviarCorreo(destino, nombre, asunto, html) {
-  const key = process.env.BREVO_API_KEY;
-  const remitente = process.env.CORREO_REMITENTE;
-  if (!key || !remitente) {
-    throw new Error("El correo no está configurado (faltan BREVO_API_KEY o CORREO_REMITENTE).");
+// El transporte se cachea entre invocaciones "calientes" del serverless.
+let transporteCache;
+function transporte() {
+  const user = process.env.GMAIL_USER;
+  // Google muestra la contraseña de aplicación con espacios ("abcd efgh ijkl mnop");
+  // se los quitamos para que el usuario pueda copiarla tal cual.
+  const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
+  if (!user || !pass) {
+    throw new Error("El correo no está configurado (faltan GMAIL_USER o GMAIL_APP_PASSWORD en Vercel).");
   }
-  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "api-key": key, "Content-Type": "application/json", accept: "application/json" },
-    body: JSON.stringify({
-      sender: { name: "ArroyitoFutStats", email: remitente },
-      to: [{ email: destino, name: nombre || destino }],
+  if (!transporteCache) {
+    transporteCache = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user, pass },
+    });
+  }
+  return transporteCache;
+}
+
+export async function enviarCorreo(destino, nombre, asunto, html) {
+  const user = process.env.GMAIL_USER;
+  try {
+    await transporte().sendMail({
+      from: { name: "ArroyitoFutStats", address: user },
+      to: { name: nombre || destino, address: destino },
       subject: asunto,
-      htmlContent: html,
-    }),
-  });
-  if (!r.ok) {
-    let detalle = "";
-    try { detalle = (await r.json()).message || ""; } catch {}
-    throw new Error("No se pudo enviar el correo. " + detalle);
+      html,
+    });
+  } catch (e) {
+    throw new Error("No se pudo enviar el correo. " + (e.message || ""));
   }
 }
 

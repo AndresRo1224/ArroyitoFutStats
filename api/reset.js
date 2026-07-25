@@ -1,15 +1,15 @@
-// Reseteo del PIN personal por correo (código de 6 dígitos, vence en 10 min).
+// Reseteo del PIN personal por correo. El jugador escribe SU correo en el momento
+// y se le envía un código de 6 dígitos (vence en 10 min) a ese correo; con él pone
+// un PIN nuevo. No se guarda el correo en la app.
 //
-// POST /api/reset { jugadorId }                        → envía el código al correo del jugador
-// POST /api/reset { jugadorId, codigo, pinNuevo }      → verifica el código y fija el PIN nuevo
-//
-// No expone correos completos. Con límite de intentos para evitar abuso.
+// POST /api/reset { jugadorId, email }               → envía el código a ese correo
+// POST /api/reset { jugadorId, codigo, pinNuevo }    → verifica el código y fija el PIN
 
-import { getDb, cors, leerBody, idValido, pinValido, hashPin, verificarPin, generarCodigo, conLimite } from "./_db.js";
-import { enviarCorreo, correoCodigoHtml, enmascararCorreo } from "./_correo.js";
+import { getDb, cors, leerBody, idValido, pinValido, correoValido, hashPin, verificarPin, generarCodigo, conLimite, clienteIp, verBloqueo, sumarFallos } from "./_db.js";
+import { enviarCorreo, correoCodigoHtml } from "./_correo.js";
 
 const VENCE_MS = 10 * 60 * 1000;   // el código dura 10 minutos
-const REENVIO_MS = 60 * 1000;      // no se puede pedir otro código antes de 60s
+const REENVIO_MS = 60 * 1000;      // no se manda otro código antes de 60s
 
 export default async function handler(req, res) {
   cors(req, res);
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     const db = await getDb();
-    const { jugadorId, codigo, pinNuevo } = leerBody(req);
+    const { jugadorId, email, codigo, pinNuevo } = leerBody(req);
     if (!idValido(jugadorId)) return res.status(400).json({ error: "Jugador inválido." });
 
     const pines = db.collection("pines");
@@ -42,15 +42,23 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // --- Paso 1: enviar el código al correo del jugador ---
+    // --- Paso 1: enviar el código al correo que escribió el jugador ---
+    if (!correoValido(email) || !email) return res.status(400).json({ error: "Escribe un correo válido." });
+
     const registro = await pines.findOne({ _id: jugadorId });
-    if (!registro || !registro.email) {
-      return res.status(200).json({ ok: false, sinCorreo: true });
+    if (!registro || !registro.pinHash) {
+      return res.status(200).json({ ok: false, sinPin: true });
     }
-    // Anti-reenvío: si ya se mandó un código hace poco, no manda otro.
+
+    // Anti-abuso: límite de envíos por IP.
+    const llaves = [`envio:${clienteIp(req)}`];
+    const bloqueo = await verBloqueo(db, llaves);
+    if (bloqueo) return res.status(429).json({ error: `Demasiados envíos. Espera ${Math.ceil(bloqueo / 60)} min.` });
+
+    // Anti-reenvío: no manda otro código si acaba de enviar uno.
     const previo = await resets.findOne({ _id: jugadorId });
     if (previo && previo.enviado && Date.now() - previo.enviado < REENVIO_MS) {
-      return res.status(200).json({ ok: true, correo: enmascararCorreo(registro.email), yaEnviado: true });
+      return res.status(200).json({ ok: true, yaEnviado: true });
     }
 
     const estado = await db.collection("estado").findOne({ _id: "principal" }, { projection: { jugadores: 1 } });
@@ -62,8 +70,9 @@ export default async function handler(req, res) {
       { $set: { codigoHash: hashPin(codigoNuevo), expira: Date.now() + VENCE_MS, enviado: Date.now(), expiraTTL: new Date(Date.now() + VENCE_MS + 60000) } },
       { upsert: true }
     );
-    await enviarCorreo(registro.email, nombre, "Tu código para cambiar el PIN — ArroyitoFutStats", correoCodigoHtml(nombre, codigoNuevo));
-    return res.status(200).json({ ok: true, correo: enmascararCorreo(registro.email) });
+    await enviarCorreo(String(email).trim().toLowerCase(), nombre, "Tu código para cambiar el PIN — ArroyitoFutStats", correoCodigoHtml(nombre, codigoNuevo));
+    await sumarFallos(db, llaves); // cuenta este envío hacia el límite por IP
+    return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: "Error del servidor: " + e.message });
   }

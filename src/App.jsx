@@ -38,7 +38,6 @@ export default function App() {
   const [fotos, setFotos] = useState({});
   const [banners, setBanners] = useState({});
   const [frases, setFrases] = useState({}); // { [jugadorId]: "frase de perfil" }
-  const [correos, setCorreos] = useState({}); // { [jugadorId]: "a***@correo.com" } enmascarado
   const [votos, setVotos] = useState({}); // { [partidoId]: { conteo, votantes } }
   const [grupo, setGrupo] = useState("ArroyitoFutStats");
   const [cargado, setCargado] = useState(false);
@@ -79,7 +78,6 @@ export default function App() {
       setFotos(f);
       setBanners(b);
       setFrases(t.frases || {});
-      setCorreos(t.correos || {});
       setVotos(v);
       // Estado del administrador (viene en la misma llamada).
       const necesario = !!(t.admin && t.admin.configurado);
@@ -216,15 +214,11 @@ export default function App() {
     setFotos((f) => ({ ...f, [id]: data }));
   };
 
-  const guardarBannerJugador = async (bannerId, fraseNueva, email, pin) => {
+  const guardarBannerJugador = async (bannerId, fraseNueva, pin) => {
     const id = bannerJugador.id;
-    await nube.guardarBanner(id, bannerId, fraseNueva, email, pin); // lanza si el PIN no coincide
+    await nube.guardarBanner(id, bannerId, fraseNueva, pin); // lanza si el PIN no coincide
     setBanners((b) => ({ ...b, [id]: bannerId }));
     setFrases((f) => ({ ...f, [id]: fraseNueva }));
-    if (email !== undefined) {
-      const enm = email ? email.slice(0, 2) + "***@" + (email.split("@")[1] || "") : "";
-      setCorreos((c) => ({ ...c, [id]: enm }));
-    }
   };
 
   const votar = async (partidoId, votanteId, pin, votadoId) => {
@@ -498,7 +492,6 @@ export default function App() {
             jugador={bannerJugador}
             actual={banners[bannerJugador.id]}
             fraseActual={frases[bannerJugador.id]}
-            correoActual={correos[bannerJugador.id]}
             onGuardar={guardarBannerJugador}
             onOlvide={() => { const j = bannerJugador; setBannerJugador(null); setResetJugador(j); }}
             onCerrar={() => setBannerJugador(null)}

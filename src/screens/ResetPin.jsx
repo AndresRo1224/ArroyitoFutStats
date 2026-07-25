@@ -7,20 +7,20 @@ import * as nube from "../lib/nube";
 // Reseteo del PIN por correo. Paso 1: pedir el código. Paso 2: código + PIN nuevo.
 export default function ResetPin({ jugador, onCerrar, avisar }) {
   const [paso, setPaso] = useState(1);
-  const [correo, setCorreo] = useState("");   // enmascarado, para mostrar
+  const [email, setEmail] = useState("");
   const [codigo, setCodigo] = useState("");
   const [pinNuevo, setPinNuevo] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
 
   const enviar = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Escribe un correo válido.");
     setCargando(true); setError("");
     try {
-      const r = await nube.pedirCodigoReset(jugador.id);
-      if (r && r.sinCorreo) {
-        setError("No tienes un correo registrado. Pídele al administrador que lo agregue o que te regenere el PIN.");
+      const r = await nube.pedirCodigoReset(jugador.id, email.trim());
+      if (r && r.sinPin) {
+        setError("Todavía no tienes un PIN. Pídele al administrador que te lo genere.");
       } else {
-        setCorreo((r && r.correo) || "tu correo");
         setPaso(2);
       }
     } catch (e) {
@@ -63,10 +63,20 @@ export default function ResetPin({ jugador, onCerrar, avisar }) {
 
         {paso === 1 ? (
           <>
-            <div className="text-sm mt-2 mb-4" style={{ color: C.humo }}>
-              {jugador.nombre}, te enviaremos un código de 6 dígitos al correo que el administrador
-              registró para ti. Con ese código pones un PIN nuevo.
+            <div className="text-sm mt-2 mb-3" style={{ color: C.humo }}>
+              {jugador.nombre}, escribe tu correo y te enviaremos un código de 6 dígitos para
+              poner un PIN nuevo.
             </div>
+            <Rotulo>Tu correo</Rotulo>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && enviar()}
+              inputMode="email"
+              placeholder="tucorreo@ejemplo.com"
+              className="w-full mt-2 mb-3 rounded-xl px-3 py-3 text-sm outline-none"
+              style={{ background: C.tarjeta, color: C.tinta, border: `1px solid ${C.linea}` }}
+            />
             {error && <div className="mb-3 text-sm font-semibold text-center" style={{ color: C.alerta }}>{error}</div>}
             <Boton ancho onClick={enviar} disabled={cargando}>
               {cargando ? <><Loader2 size={17} className="animate-spin" /> Enviando…</> : <><Mail size={17} /> Enviarme el código</>}
@@ -75,7 +85,7 @@ export default function ResetPin({ jugador, onCerrar, avisar }) {
         ) : (
           <>
             <div className="text-sm mt-2 mb-3 flex items-center gap-2" style={{ color: C.humo }}>
-              <Mail size={14} color={C.primario} /> Enviamos un código a <strong style={{ color: C.tinta }}>{correo}</strong>
+              <Mail size={14} color={C.primario} /> Enviamos un código a <strong style={{ color: C.tinta }}>{email.trim()}</strong>
             </div>
 
             <Rotulo>Código del correo</Rotulo>

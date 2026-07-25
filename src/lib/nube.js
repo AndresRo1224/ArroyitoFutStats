@@ -85,17 +85,14 @@ export async function definirAdmin(pinNuevo, pinActual) {
   return r;
 }
 
-// Guarda el perfil (banner, frase y/o correo) con el PIN personal del jugador.
-export const elegirBanner = (jugadorId, banner, frase, email, pin) =>
-  pedir("/api/banners", { method: "POST", body: JSON.stringify({ jugadorId, banner, frase, email, pin }) });
+// Guarda el perfil (banner y/o frase) con el PIN personal del jugador.
+export const elegirBanner = (jugadorId, banner, frase, pin) =>
+  pedir("/api/banners", { method: "POST", body: JSON.stringify({ jugadorId, banner, frase, pin }) });
 
-// El administrador guarda el correo de un jugador (para el reseteo por email).
-export const guardarCorreo = (jugadorId, email) =>
-  pedir("/api/correo", { method: "POST", headers: cabeceraAdmin(), body: JSON.stringify({ jugadorId, email }) });
-
-// Reseteo del PIN por correo: pedir el código y luego confirmarlo con el PIN nuevo.
-export const pedirCodigoReset = (jugadorId) =>
-  pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId }) });
+// Reseteo del PIN por correo: el jugador escribe su correo y recibe un código;
+// luego lo confirma con el PIN nuevo.
+export const pedirCodigoReset = (jugadorId, email) =>
+  pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId, email }) });
 export const confirmarReset = (jugadorId, codigo, pinNuevo) =>
   pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId, codigo, pinNuevo }) });
 
@@ -163,10 +160,10 @@ export async function subirFoto(jugadorId, data, pin) {
   verificarPinLocal(jugadorId, pin);
 }
 
-// Guarda el perfil (banner, frase y correo) con el PIN personal. Con y sin nube.
-export async function guardarBanner(jugadorId, banner, frase, email, pin) {
+// Guarda el perfil (banner y frase) con el PIN personal. Con y sin nube.
+export async function guardarBanner(jugadorId, banner, frase, pin) {
   if (nubeActiva()) {
-    await elegirBanner(jugadorId, banner, frase, email, pin);
+    await elegirBanner(jugadorId, banner, frase, pin);
     return;
   }
   verificarPinLocal(jugadorId, pin);

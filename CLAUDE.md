@@ -113,9 +113,11 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
    - Sin nube, `src/lib/nube.js` replica la misma lógica contra `localStorage "canchita:pins"`.
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.
-- **Reseteo del PIN por correo (Brevo):** el admin guarda un correo por jugador
-  (`/api/correo`, en la colección `pines`, nunca se expone completo — `/api/todo` solo lo
-  devuelve enmascarado). El jugador pide un código a su correo (`POST /api/reset {jugadorId}`)
+- **Reseteo del PIN por correo (Brevo):** cada **jugador registra su propio correo** con su
+  PIN en "Tu perfil" (`POST /api/banners` con `email`, guardado en la colección `pines`; nunca
+  se expone completo — `/api/todo` solo lo devuelve enmascarado). El admin no maneja correos.
+  (`/api/correo` existe como override admin pero no está cableado en la UI.)
+  El jugador pide un código a su correo (`POST /api/reset {jugadorId}`)
   y lo confirma con el PIN nuevo (`POST /api/reset {jugadorId, codigo, pinNuevo}`). Código de
   6 dígitos, 10 min, colección `reset` con TTL, límite de intentos. El envío usa Brevo
   (`api/_correo.js`). Entradas en la app: enlace "¿Olvidaste tu PIN?" en la ficha, SubirFoto y

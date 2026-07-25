@@ -15,9 +15,10 @@ const leerArchivo = (file) =>
 
 // El jugador personaliza su perfil: banner (diseño o foto propia, con encuadre) y
 // una frase corta. Protegido con su PIN personal (el mismo de la foto).
-export default function ElegirBanner({ jugador, actual, fraseActual, onGuardar, onOlvide, onCerrar }) {
+export default function ElegirBanner({ jugador, actual, fraseActual, correoActual, onGuardar, onOlvide, onCerrar }) {
   const [elegido, setElegido] = useState(actual || BANNERS[0].id);
   const [frase, setFrase] = useState(fraseActual || "");
+  const [email, setEmail] = useState("");
   const [srcRecorte, setSrcRecorte] = useState(null); // imagen cruda en modo recorte
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +43,9 @@ export default function ElegirBanner({ jugador, actual, fraseActual, onGuardar, 
     setCargando(true);
     setError("");
     try {
-      await onGuardar(elegido, frase.trim(), pin.trim());
+      // El correo solo se envía si el jugador escribió uno nuevo (deja lo actual si no).
+      const correo = email.trim() ? email.trim() : undefined;
+      await onGuardar(elegido, frase.trim(), correo, pin.trim());
       onCerrar();
     } catch (e) {
       setError(e.message || "No se pudo guardar el perfil.");
@@ -124,6 +127,19 @@ export default function ElegirBanner({ jugador, actual, fraseActual, onGuardar, 
               className="w-full mt-2 rounded-xl px-3 py-3 text-sm outline-none"
               style={{ background: C.tarjeta, color: C.tinta, border: `1px solid ${C.linea}` }}
             />
+
+            <div className="mt-4"><Rotulo>Tu correo (para recuperar tu PIN)</Rotulo></div>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              inputMode="email"
+              placeholder={correoActual ? `Registrado: ${correoActual}` : "tucorreo@ejemplo.com"}
+              className="w-full mt-2 rounded-xl px-3 py-3 text-sm outline-none"
+              style={{ background: C.tarjeta, color: C.tinta, border: `1px solid ${C.linea}` }}
+            />
+            <div className="text-xs mt-1" style={{ color: C.humo }}>
+              Si olvidas tu PIN, te enviaremos un código a este correo. {correoActual ? "Déjalo vacío para no cambiarlo." : ""}
+            </div>
 
             <div className="mt-4"><Rotulo>Tu PIN</Rotulo></div>
             <input

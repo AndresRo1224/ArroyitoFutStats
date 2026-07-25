@@ -216,20 +216,15 @@ export default function App() {
     setFotos((f) => ({ ...f, [id]: data }));
   };
 
-  const guardarBannerJugador = async (bannerId, frase, pin) => {
+  const guardarBannerJugador = async (bannerId, fraseNueva, email, pin) => {
     const id = bannerJugador.id;
-    await nube.guardarBanner(id, bannerId, frase, pin); // lanza error si el PIN no coincide
+    await nube.guardarBanner(id, bannerId, fraseNueva, email, pin); // lanza si el PIN no coincide
     setBanners((b) => ({ ...b, [id]: bannerId }));
-    setFrases((f) => ({ ...f, [id]: frase }));
-  };
-
-  const guardarCorreoJugador = async (email) => {
-    const id = ficha;
-    await nube.guardarCorreo(id, email); // lanza si no está autorizado
-    // Refresca el enmascarado (aprox.) sin exponer el correo completo.
-    const enm = email ? email.slice(0, 2) + "***@" + (email.split("@")[1] || "") : "";
-    setCorreos((c) => ({ ...c, [id]: enm }));
-    setAviso(email ? "Correo guardado." : "Correo borrado.");
+    setFrases((f) => ({ ...f, [id]: fraseNueva }));
+    if (email !== undefined) {
+      const enm = email ? email.slice(0, 2) + "***@" + (email.split("@")[1] || "") : "";
+      setCorreos((c) => ({ ...c, [id]: enm }));
+    }
   };
 
   const votar = async (partidoId, votanteId, pin, votadoId) => {
@@ -466,13 +461,11 @@ export default function App() {
             partidos={partidos}
             banner={banners[ficha]}
             frase={frases[ficha]}
-            correo={correos[ficha]}
             trofeos={trofeos.porJugador[ficha]}
             esAdmin={puedeEditar}
             cerrar={() => setFicha(null)}
             pedirFoto={setSubir}
             cambiarBanner={(j) => setBannerJugador(j)}
-            guardarCorreo={guardarCorreoJugador}
             olvidePin={(j) => setResetJugador(j)}
             regenerarPin={regenerarPin}
             renombrar={(n) => {
@@ -505,6 +498,7 @@ export default function App() {
             jugador={bannerJugador}
             actual={banners[bannerJugador.id]}
             fraseActual={frases[bannerJugador.id]}
+            correoActual={correos[bannerJugador.id]}
             onGuardar={guardarBannerJugador}
             onOlvide={() => { const j = bannerJugador; setBannerJugador(null); setResetJugador(j); }}
             onCerrar={() => setBannerJugador(null)}

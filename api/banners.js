@@ -1,10 +1,11 @@
-// Perfil personalizable de cada jugador: banner (diseño o foto propia) y una frase.
-// Lo edita el propio jugador con su PIN personal (el mismo de la foto).
+// Perfil personalizable de cada jugador: banner, frase y correo de recuperación.
+// Lo edita el propio jugador con su PIN personal (el mismo de la foto). El correo
+// se guarda en la colección "pines" (privado, nunca se devuelve completo).
 //
 // GET  /api/banners → { banners: {id: bannerVal}, frases: {id: frase} }
-// POST /api/banners { jugadorId, banner?, frase?, pin }  (al menos uno de banner/frase)
+// POST /api/banners { jugadorId, banner?, frase?, email?, pin }  (al menos uno)
 
-import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, bannerValido, fraseValida, auditar } from "./_db.js";
+import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, bannerValido, fraseValida, correoValido, auditar } from "./_db.js";
 
 export default async function handler(req, res) {
   cors(req, res);
@@ -25,20 +26,25 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const { jugadorId, banner, frase, pin } = leerBody(req);
+      const { jugadorId, banner, frase, email, pin } = leerBody(req);
       if (!idValido(jugadorId) || !pinValido(pin)) {
         return res.status(400).json({ error: "Datos inválidos." });
       }
-      const set = { actualizado: new Date() };
+      const setBanner = {};
       if (banner !== undefined) {
         if (!bannerValido(banner)) return res.status(400).json({ error: "Banner inválido o imagen muy grande." });
-        set.banner = banner;
+        setBanner.banner = banner;
       }
       if (frase !== undefined) {
         if (!fraseValida(frase)) return res.status(400).json({ error: "La frase es demasiado larga." });
-        set.frase = String(frase).slice(0, 80);
+        setBanner.frase = String(frase).slice(0, 80);
       }
-      if (set.banner === undefined && set.frase === undefined) {
+      let emailNuevo;
+      if (email !== undefined) {
+        if (!correoValido(email)) return res.status(400).json({ error: "El correo no es válido." });
+        emailNuevo = String(email).trim().toLowerCase();
+      }
+      if (banner === undefined && frase === undefined && email === undefined) {
         return res.status(400).json({ error: "No hay nada que guardar." });
       }
 
@@ -50,8 +56,18 @@ export default async function handler(req, res) {
       if (r.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(r.bloqueo / 60)} min.` });
       if (!r.ok) return res.status(401).json({ error: "PIN incorrecto. Ese perfil solo lo edita su dueño." });
 
-      await col.updateOne({ _id: jugadorId }, { $set: set }, { upsert: true });
-      await auditar(db, "perfil", req, { jugadorId, banner: set.banner ? (set.banner.startsWith("data:") ? "foto" : set.banner) : undefined, frase: set.frase !== undefined });
+      if (Object.keys(setBanner).length) {
+        await col.updateOne({ _id: jugadorId }, { $set: { ...setBanner, actualizado: new Date() } }, { upsert: true });
+      }
+      if (emailNuevo !== undefined) {
+        await db.collection("pines").updateOne({ _id: jugadorId }, { $set: { email: emailNuevo, actualizado: new Date() } });
+      }
+      await auditar(db, "perfil", req, {
+        jugadorId,
+        banner: setBanner.banner ? (setBanner.banner.startsWith("data:") ? "foto" : setBanner.banner) : undefined,
+        frase: setBanner.frase !== undefined,
+        correo: emailNuevo !== undefined,
+      });
       return res.status(200).json({ ok: true });
     }
 

@@ -5,6 +5,7 @@ const PREFIJO = "canchita:";
 export const K_DATOS = PREFIJO + "datos";
 export const K_FOTOS = PREFIJO + "fotos";
 export const K_BANNERS = PREFIJO + "banners";
+export const K_FRASES = PREFIJO + "frases";
 
 // window.storage existe cuando el código corre dentro de un artifact de Claude.
 // En el APK y en el navegador se usa localStorage.

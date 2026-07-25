@@ -92,6 +92,9 @@ export const bannerValido = (v) =>
   ((/^[a-z]+$/.test(v) && v.length <= LIM.banner) ||
     (/^data:image\//.test(v) && v.length <= LIM.bannerImg));
 
+// Frase de perfil: texto corto (puede ir vacío para borrarla).
+export const fraseValida = (v) => typeof v === "string" && v.length <= 80;
+
 // Saneo estructural de los datos del grupo: reconstruye solo con campos y tipos
 // permitidos, descartando cualquier objeto/operador malicioso o basura.
 export function sanearDatos(body) {

@@ -3,7 +3,7 @@ import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, Medal } f
 import { C, ROTULO, SOMBRA } from "./tema";
 import { FotoCtx, Boton, Rotulo } from "./components/ui";
 import { calcularTabla, calcularTrofeos, filaVacia, uid } from "./lib/util";
-import { K_DATOS, K_FOTOS, K_BANNERS, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
+import { K_DATOS, K_FOTOS, K_BANNERS, K_FRASES, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
 import * as nube from "./lib/nube";
 import Tabla from "./screens/Tabla";
 import Nomina from "./screens/Nomina";
@@ -36,6 +36,7 @@ export default function App() {
   const [partidos, setPartidos] = useState([]);
   const [fotos, setFotos] = useState({});
   const [banners, setBanners] = useState({});
+  const [frases, setFrases] = useState({}); // { [jugadorId]: "frase de perfil" }
   const [votos, setVotos] = useState({}); // { [partidoId]: { conteo, votantes } }
   const [grupo, setGrupo] = useState("ArroyitoFutStats");
   const [cargado, setCargado] = useState(false);
@@ -74,6 +75,7 @@ export default function App() {
       if (d.grupo) setGrupo(d.grupo);
       setFotos(f);
       setBanners(b);
+      setFrases(t.frases || {});
       setVotos(v);
       // Estado del administrador (viene en la misma llamada).
       const necesario = !!(t.admin && t.admin.configurado);
@@ -82,6 +84,7 @@ export default function App() {
       guardarJSON(K_DATOS, { jugadores: d.jugadores || [], partidos: d.partidos || [], grupo: d.grupo || grupo });
       guardarJSON(K_FOTOS, f);
       guardarJSON(K_BANNERS, b);
+      guardarJSON(K_FRASES, t.frases || {});
       setEnLinea(true);
       if (!silencioso) setAviso("Datos actualizados desde la nube.");
     } catch (e) {
@@ -103,6 +106,7 @@ export default function App() {
       }
       setFotos(await leerJSON(K_FOTOS, {}));
       setBanners(await leerJSON(K_BANNERS, {}));
+      setFrases(await leerJSON(K_FRASES, {}));
       if (!nube.nubeActiva()) setEsAdmin(true); // sin nube, este teléfono manda
       setCargado(true);
       await refrescarNube(true); // esto también trae el estado del administrador
@@ -191,6 +195,12 @@ export default function App() {
     return () => clearTimeout(t);
   }, [banners, cargado]);
 
+  useEffect(() => {
+    if (!cargado) return;
+    const t = setTimeout(() => guardarJSON(K_FRASES, frases), 400);
+    return () => clearTimeout(t);
+  }, [frases, cargado]);
+
   const tabla = useMemo(() => calcularTabla(jugadores, partidos), [jugadores, partidos]);
   const trofeos = useMemo(() => calcularTrofeos(tabla, partidos, votos), [tabla, partidos, votos]);
   const statsDe = (id) => tabla.find((t) => t.id === id) || filaVacia;
@@ -202,10 +212,11 @@ export default function App() {
     setFotos((f) => ({ ...f, [id]: data }));
   };
 
-  const guardarBannerJugador = async (bannerId, pin) => {
+  const guardarBannerJugador = async (bannerId, frase, pin) => {
     const id = bannerJugador.id;
-    await nube.guardarBanner(id, bannerId, pin); // lanza error si el PIN no coincide
+    await nube.guardarBanner(id, bannerId, frase, pin); // lanza error si el PIN no coincide
     setBanners((b) => ({ ...b, [id]: bannerId }));
+    setFrases((f) => ({ ...f, [id]: frase }));
   };
 
   const votar = async (partidoId, votanteId, pin, votadoId) => {
@@ -434,6 +445,7 @@ export default function App() {
             stats={statsDe(ficha)}
             partidos={partidos}
             banner={banners[ficha]}
+            frase={frases[ficha]}
             trofeos={trofeos.porJugador[ficha]}
             esAdmin={puedeEditar}
             cerrar={() => setFicha(null)}
@@ -467,6 +479,7 @@ export default function App() {
           <ElegirBanner
             jugador={bannerJugador}
             actual={banners[bannerJugador.id]}
+            fraseActual={frases[bannerJugador.id]}
             onGuardar={guardarBannerJugador}
             onCerrar={() => setBannerJugador(null)}
           />

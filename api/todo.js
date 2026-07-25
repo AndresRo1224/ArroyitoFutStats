@@ -28,15 +28,18 @@ export default async function handler(req, res) {
     const [estado, fotosDocs, bannerDocs, votoDocs, adminDoc] = await Promise.all([
       db.collection("estado").findOne({ _id: "principal" }),
       db.collection("fotos").find({}, { projection: { data: 1 } }).toArray(),
-      db.collection("banners").find({}, { projection: { banner: 1 } }).toArray(),
+      db.collection("banners").find({}, { projection: { banner: 1, frase: 1 } }).toArray(),
       db.collection("votos").find({}).toArray(),
       db.collection("config").findOne({ _id: "admin" }),
     ]);
 
     const fotos = {};
     fotosDocs.forEach((d) => { if (d.data) fotos[d._id] = d.data; });
-    const banners = {};
-    bannerDocs.forEach((d) => { if (d.banner) banners[d._id] = d.banner; });
+    const banners = {}, frases = {};
+    bannerDocs.forEach((d) => {
+      if (d.banner) banners[d._id] = d.banner;
+      if (d.frase) frases[d._id] = d.frase;
+    });
 
     return res.status(200).json({
       datos: estado
@@ -44,6 +47,7 @@ export default async function handler(req, res) {
         : VACIO,
       fotos,
       banners,
+      frases,
       votos: agruparVotos(votoDocs),
       admin: { configurado: !!(adminDoc && adminDoc.pinHash) || !!process.env.ADMIN_PIN },
     });

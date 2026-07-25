@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCw, Shuffle, Copy, Check, Plus, Minus, Users } from "lucide-react";
 import { C, PETOS, RUEDA, NUM, ROTULO, SOMBRA, MAX_EQUIPOS, MIN_POR_EQUIPO, MAX_POR_EQUIPO } from "../tema";
 import { Avatar, Rotulo, Boton, Vacio, RejillaAsistencia } from "../components/ui";
-import { dec1, domingoMasReciente, fechaCorta, nombreCorto } from "../lib/util";
+import { dec1, isoLocal, fechaCorta, nombreCorto } from "../lib/util";
 
 const R = 140, CX = 150, CY = 150;
 
@@ -190,7 +190,7 @@ export default function Ruleta({ jugadores, tabla, ultimoPartido }) {
 
   const texto = () => {
     if (!equipos) return "";
-    let t = `⚽ Equipos ${fechaCorta(domingoMasReciente())}\n\n`;
+    let t = `⚽ Equipos ${fechaCorta(isoLocal(new Date()))}\n\n`;
     equipos.forEach((e, i) => {
       t += `${PETOS[i].nombre.toUpperCase()}\n`;
       e.forEach((id) => { t += `· ${nombreDe[id]}\n`; });

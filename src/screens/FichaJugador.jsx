@@ -13,7 +13,7 @@ const TROFEO = {
 };
 
 export default function FichaJugador({
-  jugador, stats, partidos, banner, trofeos, esAdmin,
+  jugador, stats, partidos, banner, frase, trofeos, esAdmin,
   cerrar, renombrar, eliminar, pedirFoto, cambiarBanner, regenerarPin,
 }) {
   const [nombre, setNombre] = useState(jugador.nombre);
@@ -65,6 +65,9 @@ export default function FichaJugador({
               />
             ) : (
               <div className="text-lg font-extrabold truncate" style={{ color: C.tinta }}>{jugador.nombre}</div>
+            )}
+            {frase && (
+              <div className="text-sm mt-1 line-clamp-2" style={{ color: C.humo }}>“{frase}”</div>
             )}
           </div>
         </div>

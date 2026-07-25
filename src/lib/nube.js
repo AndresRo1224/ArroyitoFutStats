@@ -85,9 +85,9 @@ export async function definirAdmin(pinNuevo, pinActual) {
   return r;
 }
 
-// Elige el banner de perfil de un jugador (verificado con su PIN personal).
-export const elegirBanner = (jugadorId, banner, pin) =>
-  pedir("/api/banners", { method: "POST", body: JSON.stringify({ jugadorId, banner, pin }) });
+// Guarda el perfil (banner y/o frase) de un jugador con su PIN personal.
+export const elegirBanner = (jugadorId, banner, frase, pin) =>
+  pedir("/api/banners", { method: "POST", body: JSON.stringify({ jugadorId, banner, frase, pin }) });
 
 // Genera (o regenera) el PIN personal de un jugador. Devuelve { pin } en claro
 // una sola vez, para que el administrador se lo pase a esa persona.
@@ -153,10 +153,10 @@ export async function subirFoto(jugadorId, data, pin) {
   verificarPinLocal(jugadorId, pin);
 }
 
-// Guarda el banner elegido (verificado con el PIN personal). Sirve con y sin nube.
-export async function guardarBanner(jugadorId, banner, pin) {
+// Guarda el perfil (banner y frase) con el PIN personal. Sirve con y sin nube.
+export async function guardarBanner(jugadorId, banner, frase, pin) {
   if (nubeActiva()) {
-    await elegirBanner(jugadorId, banner, pin);
+    await elegirBanner(jugadorId, banner, frase, pin);
     return;
   }
   verificarPinLocal(jugadorId, pin);

@@ -34,42 +34,47 @@ export default function FichaJugador({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {/* Portada con banner */}
-        <button
-          onClick={() => cambiarBanner(jugador)}
-          className="relative block w-full h-24 rounded-2xl active:opacity-90"
-          style={{ background: bannerCss(banner), boxShadow: SOMBRA }}
-          title="Cambiar banner"
-        >
-          <div className="absolute top-2 right-2 rounded-full p-1.5 flex items-center gap-1" style={{ background: "rgba(15,27,45,0.35)" }}>
-            <Image size={12} color="#fff" />
-            <span className="text-[10px] font-bold" style={{ color: "#fff" }}>Banner</span>
-          </div>
-        </button>
-
-        <div className="px-1 -mt-9 flex items-end gap-3">
-          <button onClick={() => pedirFoto(jugador.id)} className="relative active:opacity-70">
-            <Avatar id={jugador.id} nombre={jugador.nombre} tam={76} borde={C.fondo} />
+        {/* Portada con banner; el avatar lo tapa un poco y el nombre va DEBAJO
+            (sobre fondo sólido) para que siempre se lea, sea cual sea el banner. */}
+        <div className="relative">
+          <button
+            onClick={() => cambiarBanner(jugador)}
+            className="relative block w-full h-24 rounded-2xl active:opacity-90"
+            style={{ background: bannerCss(banner), boxShadow: SOMBRA }}
+            title="Cambiar banner"
+          >
+            <div className="absolute top-2 right-2 rounded-full p-1.5 flex items-center gap-1" style={{ background: "rgba(15,27,45,0.35)" }}>
+              <Image size={12} color="#fff" />
+              <span className="text-[10px] font-bold" style={{ color: "#fff" }}>Banner</span>
+            </div>
+          </button>
+          <button
+            onClick={() => pedirFoto(jugador.id)}
+            className="absolute left-3 active:opacity-70"
+            style={{ bottom: -26 }}
+          >
+            <Avatar id={jugador.id} nombre={jugador.nombre} tam={72} borde={C.fondo} />
             <div className="absolute bottom-0 right-0 rounded-full p-1.5" style={{ background: C.primario, boxShadow: `0 0 0 2.5px ${C.fondo}` }}>
               <Camera size={12} color="#fff" />
             </div>
           </button>
-          <div className="flex-1 pb-1 min-w-0">
-            {esAdmin ? (
-              <input
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                onBlur={() => renombrar(nombre.trim() || jugador.nombre)}
-                className="w-full rounded-xl px-3 py-2 text-lg font-extrabold outline-none"
-                style={{ background: C.tarjeta, color: C.tinta, boxShadow: SOMBRA }}
-              />
-            ) : (
-              <div className="text-lg font-extrabold truncate" style={{ color: C.tinta }}>{jugador.nombre}</div>
-            )}
-            {frase && (
-              <div className="text-sm mt-1 line-clamp-2" style={{ color: C.humo }}>“{frase}”</div>
-            )}
-          </div>
+        </div>
+
+        <div className="mt-9 px-1">
+          {esAdmin ? (
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              onBlur={() => renombrar(nombre.trim() || jugador.nombre)}
+              className="w-full rounded-xl px-3 py-2 text-lg font-extrabold outline-none"
+              style={{ background: C.tarjeta, color: C.tinta, boxShadow: SOMBRA }}
+            />
+          ) : (
+            <div className="text-lg font-extrabold truncate" style={{ color: C.tinta }}>{jugador.nombre}</div>
+          )}
+          {frase && (
+            <div className="text-sm mt-1 line-clamp-2" style={{ color: C.humo }}>“{frase}”</div>
+          )}
         </div>
 
         {/* Trofeos del jugador */}

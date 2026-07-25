@@ -89,10 +89,10 @@ export async function definirAdmin(pinNuevo, pinActual) {
 export const elegirBanner = (jugadorId, banner, frase, pin) =>
   pedir("/api/banners", { method: "POST", body: JSON.stringify({ jugadorId, banner, frase, pin }) });
 
-// Reseteo del PIN por correo: el jugador escribe su correo y recibe un código;
-// luego lo confirma con el PIN nuevo.
-export const pedirCodigoReset = (jugadorId, email) =>
-  pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId, email }) });
+// Cambio del PIN por correo: el jugador confirma su PIN actual y su correo; recibe
+// un código y luego lo confirma con el PIN nuevo. Sin PIN actual correcto no se envía.
+export const pedirCodigoReset = (jugadorId, email, pinActual) =>
+  pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId, email, pinActual }) });
 export const confirmarReset = (jugadorId, codigo, pinNuevo) =>
   pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId, codigo, pinNuevo }) });
 

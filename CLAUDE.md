@@ -113,15 +113,16 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
    - Sin nube, `src/lib/nube.js` replica la misma lógica contra `localStorage "canchita:pins"`.
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.
-- **Reseteo del PIN por correo (Brevo):** cada **jugador registra su propio correo** con su
-  PIN en "Tu perfil" (`POST /api/banners` con `email`, guardado en la colección `pines`; nunca
-  se expone completo — `/api/todo` solo lo devuelve enmascarado). El admin no maneja correos.
-  (`/api/correo` existe como override admin pero no está cableado en la UI.)
-  El jugador pide un código a su correo (`POST /api/reset {jugadorId}`)
-  y lo confirma con el PIN nuevo (`POST /api/reset {jugadorId, codigo, pinNuevo}`). Código de
-  6 dígitos, 10 min, colección `reset` con TTL, límite de intentos. El envío usa Brevo
-  (`api/_correo.js`). Entradas en la app: enlace "¿Olvidaste tu PIN?" en la ficha, SubirFoto y
-  ElegirBanner; pantalla `ResetPin`.
+- **Cambio del PIN por correo (Brevo):** el jugador escribe su correo **en el momento** (no se
+  registra en la app) y, como candado, **su PIN actual**: sin el PIN actual correcto no se
+  envía el código, así nadie resetea el PIN de otro poniendo un correo cualquiera. Flujo:
+  `POST /api/reset {jugadorId, email, pinActual}` verifica el PIN actual (con `conLimite`) y
+  manda un código de 6 dígitos a ese correo; `POST /api/reset {jugadorId, codigo, pinNuevo}`
+  confirma y fija el PIN nuevo. Código de 6 dígitos, 10 min, colección `reset` con TTL, límite
+  de intentos, anti-reenvío (60s) y límite de envíos por IP. El envío usa Brevo
+  (`api/_correo.js`). Quien **de verdad** olvidó su PIN no puede usar este flujo: el admin lo
+  regenera desde la ficha. Entradas en la app: enlace "¿Olvidaste tu PIN?" en la ficha,
+  SubirFoto y ElegirBanner; pantalla `ResetPin`.
 - Variables de entorno del backend: `MONGODB_URI` (obligatoria), `MONGODB_DB` (opc., default
   "canchita"), `ADMIN_PIN` (opc.), `SESSION_SECRET` (opc., recomendada), y para el reseteo por
   correo `BREVO_API_KEY` + `CORREO_REMITENTE` (el remitente verificado en Brevo). Se configuran

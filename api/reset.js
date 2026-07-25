@@ -1,9 +1,10 @@
-// Reseteo del PIN personal por correo. El jugador escribe SU correo en el momento
-// y se le envía un código de 6 dígitos (vence en 10 min) a ese correo; con él pone
-// un PIN nuevo. No se guarda el correo en la app.
+// Cambio del PIN personal por correo. Como candado, el jugador debe confirmar SU
+// PIN actual: sin él no se envía nada (así nadie resetea el PIN de otro poniendo un
+// correo cualquiera). Escribe su correo en el momento y recibe un código de 6 dígitos
+// (vence en 10 min) para poner un PIN nuevo. El correo no se guarda en la app.
 //
-// POST /api/reset { jugadorId, email }               → envía el código a ese correo
-// POST /api/reset { jugadorId, codigo, pinNuevo }    → verifica el código y fija el PIN
+// POST /api/reset { jugadorId, email, pinActual }    → valida el PIN actual y envía el código
+// POST /api/reset { jugadorId, codigo, pinNuevo }    → verifica el código y fija el PIN nuevo
 
 import { getDb, cors, leerBody, idValido, pinValido, correoValido, hashPin, verificarPin, generarCodigo, conLimite, clienteIp, verBloqueo, sumarFallos } from "./_db.js";
 import { enviarCorreo, correoCodigoHtml } from "./_correo.js";
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     const db = await getDb();
-    const { jugadorId, email, codigo, pinNuevo } = leerBody(req);
+    const { jugadorId, email, pinActual, codigo, pinNuevo } = leerBody(req);
     if (!idValido(jugadorId)) return res.status(400).json({ error: "Jugador inválido." });
 
     const pines = db.collection("pines");
@@ -42,13 +43,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // --- Paso 1: enviar el código al correo que escribió el jugador ---
+    // --- Paso 1: validar el PIN actual y enviar el código al correo escrito ---
     if (!correoValido(email) || !email) return res.status(400).json({ error: "Escribe un correo válido." });
+    if (!pinValido(pinActual)) return res.status(400).json({ error: "Escribe tu PIN actual." });
 
     const registro = await pines.findOne({ _id: jugadorId });
     if (!registro || !registro.pinHash) {
       return res.status(200).json({ ok: false, sinPin: true });
     }
+
+    // Candado: sin el PIN actual correcto no se envía el código. Con límite de intentos
+    // (por IP y por jugador) para que este PIN tampoco se pueda adivinar por fuerza bruta.
+    const okActual = await conLimite(db, req, `resetpin:${jugadorId}`, () => verificarPin(pinActual, registro.pinHash));
+    if (okActual.bloqueo) return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil(okActual.bloqueo / 60)} min.` });
+    if (!okActual.ok) return res.status(401).json({ error: "El PIN actual no es correcto." });
 
     // Anti-abuso: límite de envíos por IP.
     const llaves = [`envio:${clienteIp(req)}`];

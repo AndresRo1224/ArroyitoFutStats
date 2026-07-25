@@ -89,6 +89,16 @@ export async function definirAdmin(pinNuevo, pinActual) {
 export const elegirBanner = (jugadorId, banner, frase, pin) =>
   pedir("/api/banners", { method: "POST", body: JSON.stringify({ jugadorId, banner, frase, pin }) });
 
+// El administrador guarda el correo de un jugador (para el reseteo por email).
+export const guardarCorreo = (jugadorId, email) =>
+  pedir("/api/correo", { method: "POST", headers: cabeceraAdmin(), body: JSON.stringify({ jugadorId, email }) });
+
+// Reseteo del PIN por correo: pedir el código y luego confirmarlo con el PIN nuevo.
+export const pedirCodigoReset = (jugadorId) =>
+  pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId }) });
+export const confirmarReset = (jugadorId, codigo, pinNuevo) =>
+  pedir("/api/reset", { method: "POST", body: JSON.stringify({ jugadorId, codigo, pinNuevo }) });
+
 // Genera (o regenera) el PIN personal de un jugador. Devuelve { pin } en claro
 // una sola vez, para que el administrador se lo pase a esa persona.
 export const generarPinJugador = (jugadorId) =>

@@ -95,6 +95,14 @@ export const bannerValido = (v) =>
 // Frase de perfil: texto corto (puede ir vacío para borrarla).
 export const fraseValida = (v) => typeof v === "string" && v.length <= 80;
 
+// Correo (permite vacío para borrarlo).
+export const correoValido = (v) =>
+  typeof v === "string" && (v === "" || (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length <= 120));
+
+export function generarCodigo() {
+  return String(crypto.randomInt(100000, 1000000)); // 6 dígitos
+}
+
 // Saneo estructural de los datos del grupo: reconstruye solo con campos y tipos
 // permitidos, descartando cualquier objeto/operador malicioso o basura.
 export function sanearDatos(body) {

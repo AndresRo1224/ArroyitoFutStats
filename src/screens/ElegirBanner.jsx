@@ -15,7 +15,7 @@ const leerArchivo = (file) =>
 
 // El jugador personaliza su perfil: banner (diseño o foto propia, con encuadre) y
 // una frase corta. Protegido con su PIN personal (el mismo de la foto).
-export default function ElegirBanner({ jugador, actual, fraseActual, onGuardar, onCerrar }) {
+export default function ElegirBanner({ jugador, actual, fraseActual, onGuardar, onOlvide, onCerrar }) {
   const [elegido, setElegido] = useState(actual || BANNERS[0].id);
   const [frase, setFrase] = useState(fraseActual || "");
   const [srcRecorte, setSrcRecorte] = useState(null); // imagen cruda en modo recorte
@@ -134,6 +134,11 @@ export default function ElegirBanner({ jugador, actual, fraseActual, onGuardar, 
               className="w-full mt-2 rounded-xl px-3 py-3 text-center text-lg font-bold tracking-[0.4em] outline-none"
               style={{ background: C.tarjeta, color: C.tinta, border: `1px solid ${C.linea}` }}
             />
+            {onOlvide && (
+              <button onClick={onOlvide} className="w-full mt-2 text-xs font-bold" style={{ color: C.primario }}>
+                ¿Olvidaste tu PIN? Cámbialo por correo
+              </button>
+            )}
 
             {error && <div className="mt-3 text-sm font-semibold text-center" style={{ color: C.alerta }}>{error}</div>}
             {!nubeActiva() && (

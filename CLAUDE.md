@@ -113,9 +113,17 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
    - Sin nube, `src/lib/nube.js` replica la misma lógica contra `localStorage "canchita:pins"`.
 - La app es **local-first**: carga el cache local al instante y luego refresca desde la nube;
   los cambios se cachean local y se empujan a la nube con un pequeño retardo.
+- **Reseteo del PIN por correo (Brevo):** el admin guarda un correo por jugador
+  (`/api/correo`, en la colección `pines`, nunca se expone completo — `/api/todo` solo lo
+  devuelve enmascarado). El jugador pide un código a su correo (`POST /api/reset {jugadorId}`)
+  y lo confirma con el PIN nuevo (`POST /api/reset {jugadorId, codigo, pinNuevo}`). Código de
+  6 dígitos, 10 min, colección `reset` con TTL, límite de intentos. El envío usa Brevo
+  (`api/_correo.js`). Entradas en la app: enlace "¿Olvidaste tu PIN?" en la ficha, SubirFoto y
+  ElegirBanner; pantalla `ResetPin`.
 - Variables de entorno del backend: `MONGODB_URI` (obligatoria), `MONGODB_DB` (opc., default
-  "canchita"), `ADMIN_PIN` (opc.). Se configuran en Vercel → Settings → Environment Variables;
-  tras cambiarlas hay que **redesplegar** para que tomen efecto.
+  "canchita"), `ADMIN_PIN` (opc.), `SESSION_SECRET` (opc., recomendada), y para el reseteo por
+  correo `BREVO_API_KEY` + `CORREO_REMITENTE` (el remitente verificado en Brevo). Se configuran
+  en Vercel → Settings → Environment Variables; tras cambiarlas hay que **redesplegar**.
 - Despliegue actual: **https://arroyito-fut-stats.vercel.app** (repo
   `AndresRo1224/ArroyitoFutStats`). `src/config.js` ya apunta ahí.
 - Diagnóstico rápido del backend: `GET /api/ping` responde `{"ok":true,"nube":true}` cuando

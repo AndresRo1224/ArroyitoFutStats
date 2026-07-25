@@ -8,7 +8,7 @@ import { nubeActiva } from "../lib/nube";
 // Modal propio con su selector adentro (mismo patrón que ElegirBanner). Capa alta
 // (z-80) para aparecer por encima de la Ficha. El fondo NO cierra el modal (evita
 // el clic fantasma de Android al volver del selector); se cierra con la X.
-export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) {
+export default function SubirFoto({ jugador, fotoActual, onGuardar, onOlvide, onCerrar }) {
   const [preview, setPreview] = useState(null); // data URL nueva sin guardar
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -81,6 +81,11 @@ export default function SubirFoto({ jugador, fotoActual, onGuardar, onCerrar }) 
             className="w-full mt-2 rounded-xl px-3 py-3 text-center text-lg font-bold tracking-[0.4em] outline-none"
             style={{ background: C.tarjeta, color: C.tinta, border: `1px solid ${C.linea}` }}
           />
+          {onOlvide && (
+            <button onClick={onOlvide} className="w-full mt-2 text-xs font-bold" style={{ color: C.primario }}>
+              ¿Olvidaste tu PIN? Cámbialo por correo
+            </button>
+          )}
         </div>
 
         {error && (

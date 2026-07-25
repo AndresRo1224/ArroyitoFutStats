@@ -17,6 +17,7 @@ import ElegirBanner from "./screens/ElegirBanner";
 import DetallePartido from "./screens/DetallePartido";
 import PedirPin from "./screens/PedirPin";
 import MostrarPin from "./screens/MostrarPin";
+import ResetPin from "./screens/ResetPin";
 import Ajustes from "./screens/Ajustes";
 import ListaPines from "./screens/ListaPines";
 
@@ -37,6 +38,7 @@ export default function App() {
   const [fotos, setFotos] = useState({});
   const [banners, setBanners] = useState({});
   const [frases, setFrases] = useState({}); // { [jugadorId]: "frase de perfil" }
+  const [correos, setCorreos] = useState({}); // { [jugadorId]: "a***@correo.com" } enmascarado
   const [votos, setVotos] = useState({}); // { [partidoId]: { conteo, votantes } }
   const [grupo, setGrupo] = useState("ArroyitoFutStats");
   const [cargado, setCargado] = useState(false);
@@ -55,6 +57,7 @@ export default function App() {
   const [verPines, setVerPines] = useState(false); // lista de PIN para repartir
   const [votarPartido, setVotarPartido] = useState(null); // partido cuyo MVP se vota
   const [bannerJugador, setBannerJugador] = useState(null); // jugador que cambia banner
+  const [resetJugador, setResetJugador] = useState(null); // jugador que resetea su PIN por correo
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
@@ -76,6 +79,7 @@ export default function App() {
       setFotos(f);
       setBanners(b);
       setFrases(t.frases || {});
+      setCorreos(t.correos || {});
       setVotos(v);
       // Estado del administrador (viene en la misma llamada).
       const necesario = !!(t.admin && t.admin.configurado);
@@ -217,6 +221,15 @@ export default function App() {
     await nube.guardarBanner(id, bannerId, frase, pin); // lanza error si el PIN no coincide
     setBanners((b) => ({ ...b, [id]: bannerId }));
     setFrases((f) => ({ ...f, [id]: frase }));
+  };
+
+  const guardarCorreoJugador = async (email) => {
+    const id = ficha;
+    await nube.guardarCorreo(id, email); // lanza si no está autorizado
+    // Refresca el enmascarado (aprox.) sin exponer el correo completo.
+    const enm = email ? email.slice(0, 2) + "***@" + (email.split("@")[1] || "") : "";
+    setCorreos((c) => ({ ...c, [id]: enm }));
+    setAviso(email ? "Correo guardado." : "Correo borrado.");
   };
 
   const votar = async (partidoId, votanteId, pin, votadoId) => {
@@ -391,8 +404,13 @@ export default function App() {
             jugador={jugadorSubiendo}
             fotoActual={fotos[jugadorSubiendo.id]}
             onGuardar={guardarFotoJugador}
+            onOlvide={() => { const j = jugadorSubiendo; setSubir(null); setResetJugador(j); }}
             onCerrar={() => setSubir(null)}
           />
+        )}
+
+        {resetJugador && (
+          <ResetPin jugador={resetJugador} avisar={setAviso} onCerrar={() => setResetJugador(null)} />
         )}
 
         {verPines && (
@@ -448,11 +466,14 @@ export default function App() {
             partidos={partidos}
             banner={banners[ficha]}
             frase={frases[ficha]}
+            correo={correos[ficha]}
             trofeos={trofeos.porJugador[ficha]}
             esAdmin={puedeEditar}
             cerrar={() => setFicha(null)}
             pedirFoto={setSubir}
             cambiarBanner={(j) => setBannerJugador(j)}
+            guardarCorreo={guardarCorreoJugador}
+            olvidePin={(j) => setResetJugador(j)}
             regenerarPin={regenerarPin}
             renombrar={(n) => {
               const actual = jugadores.find((j) => j.id === ficha);
@@ -485,6 +506,7 @@ export default function App() {
             actual={banners[bannerJugador.id]}
             fraseActual={frases[bannerJugador.id]}
             onGuardar={guardarBannerJugador}
+            onOlvide={() => { const j = bannerJugador; setBannerJugador(null); setResetJugador(j); }}
             onCerrar={() => setBannerJugador(null)}
           />
         )}

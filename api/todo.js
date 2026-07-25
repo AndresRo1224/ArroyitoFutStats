@@ -5,6 +5,7 @@
 // { datos:{grupo,jugadores,partidos}, fotos, banners, votos, admin:{configurado} }
 
 import { getDb, cors } from "./_db.js";
+import { enmascararCorreo } from "./_correo.js";
 
 const VACIO = { grupo: "ArroyitoFutStats", jugadores: [], partidos: [] };
 
@@ -25,12 +26,13 @@ export default async function handler(req, res) {
 
   try {
     const db = await getDb();
-    const [estado, fotosDocs, bannerDocs, votoDocs, adminDoc] = await Promise.all([
+    const [estado, fotosDocs, bannerDocs, votoDocs, adminDoc, pinDocs] = await Promise.all([
       db.collection("estado").findOne({ _id: "principal" }),
       db.collection("fotos").find({}, { projection: { data: 1 } }).toArray(),
       db.collection("banners").find({}, { projection: { banner: 1, frase: 1 } }).toArray(),
       db.collection("votos").find({}).toArray(),
       db.collection("config").findOne({ _id: "admin" }),
+      db.collection("pines").find({}, { projection: { email: 1 } }).toArray(),
     ]);
 
     const fotos = {};
@@ -40,6 +42,9 @@ export default async function handler(req, res) {
       if (d.banner) banners[d._id] = d.banner;
       if (d.frase) frases[d._id] = d.frase;
     });
+    // Correos SIEMPRE enmascarados (nunca se expone el correo completo).
+    const correos = {};
+    pinDocs.forEach((d) => { if (d.email) correos[d._id] = enmascararCorreo(d.email); });
 
     return res.status(200).json({
       datos: estado
@@ -48,6 +53,7 @@ export default async function handler(req, res) {
       fotos,
       banners,
       frases,
+      correos,
       votos: agruparVotos(votoDocs),
       admin: { configurado: !!(adminDoc && adminDoc.pinHash) || !!process.env.ADMIN_PIN },
     });

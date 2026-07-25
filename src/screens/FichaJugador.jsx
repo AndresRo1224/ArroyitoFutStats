@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar } from "lucide-react";
+import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Mail } from "lucide-react";
 import { C, PETOS, NUM, SOMBRA, bannerCss } from "../tema";
-import { Avatar, Rotulo, Marcador } from "../components/ui";
+import { Avatar, Rotulo, Marcador, Boton } from "../components/ui";
 import { dec, dec1, fechaCorta, notaPartido } from "../lib/util";
 
 const TROFEO = {
@@ -13,10 +13,12 @@ const TROFEO = {
 };
 
 export default function FichaJugador({
-  jugador, stats, partidos, banner, frase, trofeos, esAdmin,
-  cerrar, renombrar, eliminar, pedirFoto, cambiarBanner, regenerarPin,
+  jugador, stats, partidos, banner, frase, correo, trofeos, esAdmin,
+  cerrar, renombrar, eliminar, pedirFoto, cambiarBanner, guardarCorreo, olvidePin, regenerarPin,
 }) {
   const [nombre, setNombre] = useState(jugador.nombre);
+  const [email, setEmail] = useState("");
+  const [guardandoCorreo, setGuardandoCorreo] = useState(false);
   const suyos = partidos.filter((p) => p.att.includes(jugador.id)).slice(0, 8);
   const tarjeta = { background: C.tarjeta, boxShadow: SOMBRA };
   const misTitulos = (trofeos && trofeos.titulos) || [];
@@ -144,6 +146,51 @@ export default function FichaJugador({
         <div className="text-xs mt-3 text-center" style={{ color: C.humo }}>
           Toca tu foto o tu banner (con tu PIN) para personalizar tu perfil.
         </div>
+
+        {olvidePin && (
+          <button
+            onClick={() => olvidePin(jugador)}
+            className="w-full mt-2 text-xs font-bold text-center"
+            style={{ color: C.primario }}
+          >
+            ¿Olvidaste tu PIN? Cámbialo por correo
+          </button>
+        )}
+
+        {/* Correo del jugador (para el reset por email): solo lo maneja el admin */}
+        {esAdmin && (
+          <div className="mt-3 rounded-2xl p-3" style={tarjeta}>
+            <div className="flex items-center gap-2 mb-2">
+              <Mail size={15} color={C.primario} />
+              <Rotulo>Correo para reset del PIN</Rotulo>
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={correo || "correo@ejemplo.com"}
+                inputMode="email"
+                className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
+                style={{ background: C.tarjeta2, color: C.tinta, border: `1px solid ${C.linea}` }}
+              />
+              <Boton
+                chico
+                onClick={async () => {
+                  if (!guardarCorreo) return;
+                  setGuardandoCorreo(true);
+                  try { await guardarCorreo(email.trim()); setEmail(""); } catch { /* App avisa */ }
+                  finally { setGuardandoCorreo(false); }
+                }}
+                disabled={guardandoCorreo}
+              >
+                {guardandoCorreo ? "…" : "Guardar"}
+              </Boton>
+            </div>
+            <div className="text-xs mt-1.5" style={{ color: C.humo }}>
+              {correo ? `Registrado: ${correo}` : "Sin correo. Con él, el jugador puede resetear su PIN solo."}
+            </div>
+          </div>
+        )}
 
         {esAdmin && (
           <button

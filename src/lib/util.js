@@ -301,7 +301,7 @@ export function calcularTrofeos(tabla, partidos, votosPorPartido = {}) {
     titulos.push({
       clave: "topo",
       nombre: "El Topo 🕳️",
-      detalle: "Más autogoles en propia puerta",
+      detalle: "Más autogoles",
       jugador: topo,
       valor: (t) => `${t.autogoles} autogol${t.autogoles === 1 ? "" : "es"}`,
       tono: "alerta",

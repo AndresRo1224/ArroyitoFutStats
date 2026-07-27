@@ -1,6 +1,7 @@
 // Votación del MVP de cada partido. Cada jugador que asistió vota una vez,
-// autenticándose con su PIN personal. La votación dura 24h desde que se registró
-// el partido (campo `creado`).
+// autenticándose con su PIN personal. La votación dura 2h desde que se registró
+// el partido (`creado`), o desde que el administrador la reabrió (`votaDesde`).
+// El administrador también puede cerrarla antes (`votacionCerrada`).
 //
 // GET  /api/votos                 → { [partidoId]: { conteo: {votadoId:n}, votantes:[ids] } }
 // GET  /api/votos?partidoId=xxx   → lo mismo, solo ese partido
@@ -8,7 +9,7 @@
 
 import { getDb, cors, leerBody, verificarPin, conLimite, idValido, pinValido, qStr } from "./_db.js";
 
-const VOTACION_MS = 24 * 60 * 60 * 1000;
+const VOTACION_MS = 2 * 60 * 60 * 1000; // debe coincidir con src/lib/util.js
 
 function agrupar(docs) {
   const out = {};
@@ -48,7 +49,8 @@ export default async function handler(req, res) {
       const estado = await db.collection("estado").findOne({ _id: "principal" });
       const partido = (estado?.partidos || []).find((p) => p.id === partidoId);
       if (!partido) return res.status(404).json({ error: "Ese partido no existe." });
-      if (!partido.creado || Date.now() >= partido.creado + VOTACION_MS) {
+      const inicio = partido.votaDesde || partido.creado;
+      if (partido.votacionCerrada || !inicio || Date.now() >= inicio + VOTACION_MS) {
         return res.status(403).json({ error: "La votación de este partido ya cerró." });
       }
       if (!partido.att.includes(votanteId) || !partido.att.includes(votadoId)) {

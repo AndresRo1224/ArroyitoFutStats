@@ -1,23 +1,64 @@
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, Trash2, Plus, Minus, Check } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Minus, Check, Shuffle } from "lucide-react";
 import { C, PETOS, NUM, ROTULO, SOMBRA, MAX_EQUIPOS } from "../tema";
 import { Avatar, Rotulo, Boton, RejillaAsistencia } from "../components/ui";
-import { domingoMasReciente, fechaLarga, uid } from "../lib/util";
+import { domingoMasReciente, fechaLarga, isoLocal, uid } from "../lib/util";
 
-export default function EditorPartido({ inicial, jugadores, ultimoPartido, guardar, borrar, cerrar, pasoInicial }) {
+// Traduce el sorteo que dejó la ruleta a lo que el editor necesita: quiénes
+// asistieron (equipos + banca) y en qué equipo quedó cada uno. Descarta a los
+// que ya no están en la nómina.
+function leerSorteo(sorteo, vivos) {
+  if (!sorteo || !Array.isArray(sorteo.equipos)) return null;
+  const equipos = sorteo.equipos
+    .slice(0, MAX_EQUIPOS)
+    .map((e) => (Array.isArray(e) ? e.filter((id) => vivos.has(id)) : []));
+  const banca = Array.isArray(sorteo.banca) ? sorteo.banca.filter((id) => vivos.has(id)) : [];
+  const att = [...equipos.flat(), ...banca];
+  if (!att.length) return null;
+  const eq = {};
+  equipos.forEach((e, i) => e.forEach((id) => { eq[id] = i; }));
+  return { att, eq, nEq: Math.max(2, equipos.length), fecha: sorteo.fecha };
+}
+
+export default function EditorPartido({
+  inicial, jugadores, ultimoPartido, guardar, borrar, cerrar, pasoInicial, sorteo, aplicarSorteo,
+}) {
   const vivos = useMemo(() => new Set(jugadores.map((j) => j.id)), [jugadores]);
-  const [fecha, setFecha] = useState(inicial ? inicial.fecha : domingoMasReciente());
-  const [att, setAtt] = useState(inicial ? inicial.att.filter((id) => vivos.has(id)) : []);
+
+  // Equipos que dejó la ruleta. Solo se ofrecen en partidos nuevos, y se aplican
+  // solos si vienes de la ruleta o si el sorteo es de hoy (uno viejo sería un lío).
+  const delSorteo = leerSorteo(sorteo, vivos);
+  const usarSorteo = !inicial && !!delSorteo && (!!aplicarSorteo || delSorteo.fecha === isoLocal(new Date()));
+
+  const [fecha, setFecha] = useState(
+    inicial ? inicial.fecha : usarSorteo && delSorteo.fecha ? delSorteo.fecha : domingoMasReciente()
+  );
+  const [att, setAtt] = useState(
+    inicial ? inicial.att.filter((id) => vivos.has(id)) : usarSorteo ? delSorteo.att : []
+  );
   const [g, setG] = useState(inicial ? { ...inicial.g } : {});
   const [a, setA] = useState(inicial ? { ...inicial.a } : {});
   const [at, setAt] = useState(inicial ? { ...inicial.at } : {}); // atajadas
   const [ag, setAg] = useState(inicial ? { ...inicial.ag } : {}); // autogoles (restan)
 
   // Resultado: cada asistente a un equipo (color) + goles por equipo (marcador).
-  const mkIni = inicial && Array.isArray(inicial.marcador) && inicial.marcador.length >= 2 ? [...inicial.marcador] : [0, 0];
-  const [nEq, setNEq] = useState(mkIni.length);
-  const [eq, setEq] = useState(inicial && inicial.equipo ? { ...inicial.equipo } : {}); // id → índice de equipo
-  const [mk, setMk] = useState(mkIni); // goles por equipo
+  const mkIni = inicial && Array.isArray(inicial.marcador) && inicial.marcador.length >= 2 ? [...inicial.marcador] : null;
+  const eqIni = inicial && inicial.equipo ? { ...inicial.equipo } : usarSorteo ? delSorteo.eq : {};
+  // Cuántos equipos mostrar: los del marcador, los del sorteo y, sobre todo, los
+  // que ya tienen gente asignada (si no, se perderían al guardar).
+  const nEqIni = Math.max(
+    2,
+    mkIni ? mkIni.length : 0,
+    usarSorteo ? delSorteo.nEq : 0,
+    Math.max(-1, ...Object.values(eqIni)) + 1
+  );
+  const [nEq, setNEq] = useState(nEqIni);
+  const [eq, setEq] = useState(eqIni);
+  const [mk, setMk] = useState(mkIni || Array.from({ length: nEqIni }, () => 0));
+  // El marcador solo se guarda si de verdad lo registraron: unos equipos sin
+  // marcador no pueden contar como empate 0-0 para todo el mundo.
+  const [conMarcador, setConMarcador] = useState(!!mkIni);
+  const [deSorteo, setDeSorteo] = useState(usarSorteo);
 
   const [paso, setPaso] = useState(pasoInicial || (inicial ? 2 : 1));
 
@@ -32,7 +73,12 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
     setMk((m) => Array.from({ length: q }, (_, i) => m[i] || 0));
     setEq((e) => Object.fromEntries(Object.entries(e).filter(([, v]) => v < q))); // quita asignaciones a equipos que ya no existen
   };
-  const golEquipo = (t, d) => setMk((m) => m.map((x, i) => (i === t ? Math.max(0, x + d) : x)));
+  const golEquipo = (t, d) => {
+    const v = Math.max(0, (mk[t] || 0) + d);
+    if (v === (mk[t] || 0)) return; // restar en 0 no registra nada
+    setConMarcador(true);
+    setMk((m) => m.map((x, i) => (i === t ? v : x)));
+  };
   const asignar = (id, t) => setEq((e) => {
     const n = { ...e };
     if (n[id] === t) delete n[id]; // tocar el equipo ya elegido lo quita
@@ -40,17 +86,36 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
     return n;
   });
 
-  const hayResultado = Object.keys(eq).length > 0;
+  const traerSorteo = () => {
+    if (!delSorteo) return;
+    const q = Math.max(2, Math.min(MAX_EQUIPOS, delSorteo.nEq));
+    setAtt((p) => Array.from(new Set([...p, ...delSorteo.att])));
+    setEq(delSorteo.eq);
+    setNEq(q);
+    setMk((m) => Array.from({ length: q }, (_, i) => m[i] || 0));
+    setDeSorteo(true);
+  };
+  const quitarEquipos = () => {
+    setEq({});
+    setConMarcador(false);
+    setDeSorteo(false);
+  };
+
+  const hayEquipos = Object.keys(eq).length > 0;
   const marc = mk.slice(0, nEq);
   const maxG = Math.max(...marc);
   const lideres = marc.map((x, i) => (x === maxG ? i : -1)).filter((i) => i >= 0);
-  const previoGanador = !hayResultado ? "" : lideres.length > 1 ? "Empate 🤝" : `Gana ${PETOS[lideres[0]].nombre} 🏆`;
+  const previoGanador = lideres.length > 1 ? "Empate 🤝" : `Gana ${PETOS[lideres[0]].nombre} 🏆`;
 
   const construir = () => {
     const base = { id: inicial ? inicial.id : uid(), fecha, att, g, a, at, ag };
-    if (hayResultado) {
-      base.equipo = Object.fromEntries(Object.entries(eq).filter(([id]) => att.includes(id)));
-      base.marcador = marc;
+    // Solo se guardan asignaciones de gente que asistió y a equipos que existen.
+    const asignados = Object.fromEntries(
+      Object.entries(eq).filter(([id, t]) => att.includes(id) && t < nEq)
+    );
+    if (Object.keys(asignados).length) {
+      base.equipo = asignados;
+      if (conMarcador) base.marcador = marc; // sin marcador no hay ganado/empatado/perdido
     }
     return base;
   };
@@ -82,6 +147,14 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
       <div className="flex-1 overflow-y-auto pb-28">
         {paso === 1 ? (
           <div className="px-4 pt-4">
+            {deSorteo && (
+              <div className="rounded-2xl p-3 mb-3 flex items-center gap-2.5" style={{ background: `${C.primario}12`, boxShadow: `inset 0 0 0 1px ${C.primario}44` }}>
+                <Shuffle size={16} color={C.primario} />
+                <div className="flex-1 text-xs font-semibold" style={{ color: C.tinta }}>
+                  Equipos traídos de la ruleta
+                </div>
+              </div>
+            )}
             <Rotulo>Fecha</Rotulo>
             <input
               type="date"
@@ -112,7 +185,10 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
               <div key={id} className="rounded-2xl p-3" style={{ background: C.tarjeta, boxShadow: SOMBRA }}>
                 <div className="flex items-center gap-2.5 mb-3">
                   <Avatar id={id} nombre={nombreDe[id]} tam={34} />
-                  <div className="text-sm font-bold truncate" style={{ color: C.tinta }}>{nombreDe[id]}</div>
+                  <div className="text-sm font-bold truncate flex-1" style={{ color: C.tinta }}>{nombreDe[id]}</div>
+                  {eq[id] !== undefined && eq[id] < nEq && (
+                    <div className="rounded-full shrink-0" style={{ width: 10, height: 10, background: PETOS[eq[id]].hex }} title={PETOS[eq[id]].nombre} />
+                  )}
                 </div>
                 {[
                   { et: "Goles", obj: g, set: setG, col: C.oro },
@@ -146,6 +222,24 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
           </div>
         ) : (
           <div className="px-4 pt-4 space-y-5">
+            {deSorteo ? (
+              <div className="rounded-2xl p-3 flex items-center gap-2.5" style={{ background: `${C.primario}12`, boxShadow: `inset 0 0 0 1px ${C.primario}44` }}>
+                <Shuffle size={16} color={C.primario} />
+                <div className="flex-1 text-xs font-semibold" style={{ color: C.tinta }}>
+                  Equipos traídos de la ruleta
+                </div>
+                <button onClick={quitarEquipos} className="text-xs font-bold shrink-0" style={{ color: C.humo }}>Quitar</button>
+              </div>
+            ) : delSorteo && !hayEquipos ? (
+              <button
+                onClick={traerSorteo}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 font-bold text-sm active:scale-[0.99] transition"
+                style={{ background: C.tarjeta, color: C.primario, boxShadow: SOMBRA }}
+              >
+                <Shuffle size={16} /> Traer equipos de la ruleta
+              </button>
+            ) : null}
+
             <div>
               <Rotulo>¿Cuántos equipos?</Rotulo>
               <div className="flex gap-2 mt-2">
@@ -172,16 +266,29 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
                     <button onClick={() => golEquipo(t, -1)} className="rounded-full flex items-center justify-center active:opacity-60" style={{ width: 32, height: 32, background: C.tarjeta2 }}>
                       <Minus size={15} color={C.tinta} />
                     </button>
-                    <div className="text-center" style={{ ...NUM, color: C.tinta, fontSize: 20, fontWeight: 800, width: 30 }}>{mk[t] || 0}</div>
+                    <div className="text-center" style={{ ...NUM, color: conMarcador ? C.tinta : C.humo, fontSize: 20, fontWeight: 800, width: 30 }}>{mk[t] || 0}</div>
                     <button onClick={() => golEquipo(t, 1)} className="rounded-full flex items-center justify-center active:opacity-60" style={{ width: 32, height: 32, background: PETOS[t].hex }}>
                       <Plus size={15} color="#fff" strokeWidth={3} />
                     </button>
                   </div>
                 ))}
               </div>
-              <div className="text-center text-sm font-bold mt-2" style={{ color: hayResultado ? C.primario : C.humo }}>
-                {hayResultado ? previoGanador : "Asigna cada jugador a su equipo abajo"}
+              <div className="text-center text-sm font-bold mt-2" style={{ color: conMarcador ? C.primario : C.humo }}>
+                {!hayEquipos
+                  ? "Asigna cada jugador a su equipo abajo"
+                  : conMarcador
+                    ? previoGanador
+                    : "Toca los + para registrar el marcador"}
               </div>
+              {conMarcador && (
+                <button
+                  onClick={() => { setConMarcador(false); setMk(Array.from({ length: nEq }, () => 0)); }}
+                  className="w-full text-xs font-bold mt-1"
+                  style={{ color: C.humo }}
+                >
+                  Quitar el marcador
+                </button>
+              )}
             </div>
 
             <div>
@@ -210,9 +317,9 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
                   </div>
                 ))}
               </div>
-              {hayResultado && (
-                <button onClick={() => setEq({})} className="w-full text-xs font-bold mt-3" style={{ color: C.humo }}>
-                  Quitar el resultado
+              {hayEquipos && !deSorteo && (
+                <button onClick={quitarEquipos} className="w-full text-xs font-bold mt-3" style={{ color: C.humo }}>
+                  Quitar los equipos
                 </button>
               )}
             </div>
@@ -234,7 +341,7 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
               <Check size={17} /> Guardar partido
             </Boton>
             <button onClick={() => setPaso(3)} className="w-full text-sm font-bold py-1 active:opacity-60" style={{ color: C.primario }}>
-              {hayResultado ? "Editar resultado y equipos →" : "Agregar resultado y equipos →"}
+              {hayEquipos ? "Editar resultado y equipos →" : "Agregar resultado y equipos →"}
             </button>
           </div>
         ) : (

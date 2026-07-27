@@ -172,13 +172,22 @@ export const filaVacia = {
 };
 
 // --- Votación del MVP ---
-export const VOTACION_MS = 24 * 60 * 60 * 1000; // la votación dura 24 horas
+export const VOTACION_MS = 2 * 60 * 60 * 1000; // la votación dura 2 horas
 
-// La votación se abre al registrar el partido (campo `creado`) y dura 24h.
+// Desde cuándo cuentan las 2 horas: normalmente desde que se registró el partido
+// (`creado`), pero si el administrador la reabre, desde ese momento (`votaDesde`).
+// Eso importa cuando el partido se guarda ANTES de jugar (por ejemplo, desde la
+// ruleta): al terminar, el admin la reabre y todos tienen 2 horas frescas.
+const inicioVotacion = (partido) => (partido && (partido.votaDesde || partido.creado)) || 0;
+
+// Abierta = tiene inicio, el admin no la cerró a mano, y no han pasado las 2 horas.
 export const votacionAbierta = (partido) =>
-  !!(partido && partido.creado) && Date.now() < partido.creado + VOTACION_MS;
+  !!inicioVotacion(partido) && !(partido && partido.votacionCerrada) && Date.now() < inicioVotacion(partido) + VOTACION_MS;
 
-export const cierreVotacion = (partido) => (partido && partido.creado ? partido.creado + VOTACION_MS : 0);
+export const cierreVotacion = (partido) => {
+  const i = inicioVotacion(partido);
+  return i ? i + VOTACION_MS : 0;
+};
 
 // MVP de un partido según los votos. Empate: gana quien más aportó (goles+asist)
 // en ese partido; si sigue el empate, el id menor (estable). Sin votos: null.

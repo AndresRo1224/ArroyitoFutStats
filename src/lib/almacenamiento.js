@@ -6,6 +6,9 @@ export const K_DATOS = PREFIJO + "datos";
 export const K_FOTOS = PREFIJO + "fotos";
 export const K_BANNERS = PREFIJO + "banners";
 export const K_FRASES = PREFIJO + "frases";
+// Último sorteo de la ruleta: { equipos: [[id]], banca: [id], fecha, ts }. Vive
+// solo en este teléfono y sirve para prellenar los equipos del partido.
+export const K_SORTEO = PREFIJO + "sorteo";
 
 // window.storage existe cuando el código corre dentro de un artifact de Claude.
 // En el APK y en el navegador se usa localStorage.

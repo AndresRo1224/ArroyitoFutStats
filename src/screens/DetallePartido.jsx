@@ -16,6 +16,7 @@ const TABS = [
 export default function DetallePartido({
   partido, jugadores, votos, onVotar, esAdmin,
   onEditarAsistencia, onEditarDatos, onEditarResultado, onBorrar, onCerrar,
+  onCerrarVotacion, onAbrirVotacion,
 }) {
   const [tab, setTab] = useState("datos");
   const nombreDe = useMemo(() => Object.fromEntries(jugadores.map((j) => [j.id, j.nombre])), [jugadores]);
@@ -193,7 +194,15 @@ export default function DetallePartido({
         )}
 
         {tab === "mvp" && (
-          <VotacionMVP partido={partido} jugadores={jugadores} votos={votos} onVotar={onVotar} />
+          <VotacionMVP
+            partido={partido}
+            jugadores={jugadores}
+            votos={votos}
+            onVotar={onVotar}
+            esAdmin={esAdmin}
+            onCerrarVotacion={onCerrarVotacion}
+            onAbrirVotacion={onAbrirVotacion}
+          />
         )}
       </div>
     </div>

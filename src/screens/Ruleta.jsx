@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCw, Shuffle, Copy, Check, Plus, Minus, Users } from "lucide-react";
+import { RotateCw, Shuffle, Copy, Check, Plus, Minus, Users, ClipboardList } from "lucide-react";
 import { C, PETOS, RUEDA, NUM, ROTULO, SOMBRA, MAX_EQUIPOS, MIN_POR_EQUIPO, MAX_POR_EQUIPO } from "../tema";
 import { Avatar, Rotulo, Boton, Vacio, RejillaAsistencia } from "../components/ui";
 import { dec1, isoLocal, fechaCorta, nombreCorto } from "../lib/util";
@@ -94,7 +94,7 @@ function Cancha({ ids, peto, nombreDe, cupo }) {
   );
 }
 
-export default function Ruleta({ jugadores, tabla, ultimoPartido }) {
+export default function Ruleta({ jugadores, tabla, ultimoPartido, onSorteo, onRegistrar }) {
   const [sel, setSel] = useState([]);
   const [nEquipos, setNEquipos] = useState(2);
   const [porEquipo, setPorEquipo] = useState(5); // fútbol 5 por defecto
@@ -108,6 +108,18 @@ export default function Ruleta({ jugadores, tabla, ultimoPartido }) {
   const reloj = useRef(null);
 
   useEffect(() => () => clearTimeout(reloj.current), []);
+
+  const sorteoActual = () => ({ equipos: equipos || [], banca, fecha: isoLocal(new Date()), ts: Date.now() });
+
+  // El sorteo se guarda en el teléfono apenas cambia, así los equipos ya están
+  // listos al registrar el partido (aunque se cierre la app en el intermedio).
+  useEffect(() => {
+    if (!onSorteo || !equipos) return;
+    onSorteo(sorteoActual());
+    // `onSorteo` no va en las dependencias: el padre la recrea en cada render y
+    // esto se dispararía en bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equipos, banca]);
 
   // El nivel para "repartir parejo" es la nota sobre 10.
   const nivel = useMemo(() => Object.fromEntries(tabla.map((t) => [t.id, t.pj ? t.nota : 0])), [tabla]);
@@ -430,15 +442,27 @@ export default function Ruleta({ jugadores, tabla, ultimoPartido }) {
           </div>
         </div>
       ) : (
-        <div className="px-4 pt-4 flex gap-2">
-          <div className="flex-1">
-            <Boton ancho onClick={copiar}>
-              <Copy size={16} /> {copiado ? "¡Copiado!" : "Copiar para WhatsApp"}
+        <div className="px-4 pt-4 space-y-2">
+          {onRegistrar && (
+            <>
+              <Boton ancho onClick={() => onRegistrar(sorteoActual())}>
+                <ClipboardList size={17} /> Guardar como partido
+              </Boton>
+              <div className="text-xs text-center" style={{ color: C.humo }}>
+                Los equipos quedan listos: después solo pones los goles.
+              </div>
+            </>
+          )}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Boton tono={onRegistrar ? "fantasma" : "solido"} ancho onClick={copiar}>
+                <Copy size={16} /> {copiado ? "¡Copiado!" : "Copiar para WhatsApp"}
+              </Boton>
+            </div>
+            <Boton tono="fantasma" onClick={reiniciar}>
+              <RotateCw size={16} />
             </Boton>
           </div>
-          <Boton tono="fantasma" onClick={reiniciar}>
-            <RotateCw size={16} />
-          </Boton>
         </div>
       )}
 

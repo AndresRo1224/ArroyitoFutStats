@@ -41,7 +41,9 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     ag: { ab12cd3: 0 },           // autogoles por jugador (restan nota)
     equipo: { ab12cd3: 0 },       // índice de equipo (0..5) de cada jugador, para el marcador
     marcador: [3, 2],             // goles por equipo; gana el de más (empate si hay tope repetido)
-    creado: 1690000000000,        // ms; abre la ventana de votación del MVP (24h)
+    creado: 1690000000000,        // ms; abre la ventana de votación del MVP (2h)
+    votacionCerrada: false,       // el admin la cerró antes de tiempo
+    votaDesde: null,              // ms; si el admin la reabrió, desde aquí cuentan las 2h
   }]
 }
 
@@ -52,8 +54,14 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
 - `partidos` se mantiene ordenado por fecha descendente; `partidos[0]` es el más reciente.
 - **MVP, banners y trofeos** viven en la nube:
   - `votos` (colección): `{ _id:"partidoId:votanteId", partidoId, votanteId, votadoId }`. Cada
-    asistente vota una vez con su PIN personal; la votación dura 24h desde `partido.creado`
-    (`votacionAbierta()` en util). El MVP se calcula (`mvpDePartido`), no se guarda.
+    asistente vota una vez con su PIN personal; la votación dura **2 horas** desde
+    `partido.votaDesde || partido.creado` (`votacionAbierta()` en util). El **administrador**
+    puede cerrarla antes (`votacionCerrada: true`) o reabrirla (pone `votaDesde: ahora`, lo que
+    da 2 horas frescas — necesario cuando el partido se registró ANTES de jugarlo, p. ej. desde
+    la ruleta). Botón en la pestaña MVP del detalle. **`VOTACION_MS` está duplicado en
+    `src/lib/util.js` y `api/votos.js`: si cambias uno, cambia el otro**, y el servidor rechaza
+    votos fuera de plazo o con la votación cerrada (el cliente solo esconde el formulario).
+    El MVP se calcula (`mvpDePartido`), no se guarda.
   - `banners` (colección): `{ _id: jugadorId, banner: "idDiseño" }`. Solo el id de un fondo de
     `BANNERS` (tema.js); lo elige el jugador con su PIN. No es una imagen: no pesa.
   - Los **trofeos son calculados** (`calcularTrofeos` en util), históricos: Bota de oro
@@ -82,6 +90,17 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     en `DetallePartido` (marcador con ganador + punto de color por jugador) y en la ficha
     (récord Ganados/Empates/Perdidos + chip de racha). El resultado es **opcional**: si no se
     asigna a nadie, el partido no guarda `equipo`/`marcador`.
+  - **Los equipos salen de la ruleta.** Al terminar el sorteo, `Ruleta` lo guarda solo en este
+    teléfono (`localStorage "canchita:sorteo"`, clave `K_SORTEO`) con
+    `{equipos:[[id]], banca:[id], fecha, ts}`, y ofrece **"Guardar como partido"**, que abre el
+    editor con la asistencia y los equipos ya puestos. En un partido **nuevo** el editor también
+    los trae solo si el sorteo es **de hoy** (`leerSorteo()` + `usarSorteo` en `EditorPartido`);
+    si es más viejo, aparece el botón "Traer equipos de la ruleta". Nunca se aplica al **editar**
+    un partido existente. El sorteo NO va a la nube (evita endpoints y conexiones extra).
+  - **`conMarcador` (en `EditorPartido`) es la razón de que prellenar equipos no invente
+    resultados:** el `marcador` solo se guarda si de verdad lo tocaron. Sin él, un partido con
+    equipos pero sin goles se guardaría como 0-0 y `calcularTabla` le daría un **empate a todo
+    el mundo**. Si tocas ese archivo, no guardes `marcador` por defecto.
 - **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a, at, ag)` en
   `src/lib/util.js` da la nota de un partido:
   `6.0 + 0.8·goles + 0.5·asistencias + 0.1·atajadas − 1.0·autogoles`, acotada a `[0, 10]`

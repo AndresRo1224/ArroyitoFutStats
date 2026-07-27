@@ -151,6 +151,10 @@ export function sanearDatos(body) {
         ? p.marcador.slice(0, 6).map((x) => (Number.isFinite(x) ? Math.max(0, Math.min(99, Math.trunc(x))) : 0))
         : [],
       creado: Number.isFinite(p.creado) ? p.creado : Date.now(),
+      // Votación del MVP: cerrada a mano por el admin, y desde cuándo cuentan las
+      // 2 horas si la reabrió.
+      votacionCerrada: !!p.votacionCerrada,
+      votaDesde: Number.isFinite(p.votaDesde) ? p.votaDesde : null,
     }));
 
   const grupo = esTexto(body.grupo, LIM.nombre) ? body.grupo.slice(0, LIM.nombre) : "ArroyitoFutStats";

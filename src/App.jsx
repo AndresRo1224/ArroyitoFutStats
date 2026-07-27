@@ -3,7 +3,7 @@ import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, Medal } f
 import { C, ROTULO, SOMBRA } from "./tema";
 import { FotoCtx, Boton, Rotulo } from "./components/ui";
 import { calcularTabla, calcularTrofeos, filaVacia, uid } from "./lib/util";
-import { K_DATOS, K_FOTOS, K_BANNERS, K_FRASES, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
+import { K_DATOS, K_FOTOS, K_BANNERS, K_FRASES, K_SORTEO, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
 import * as nube from "./lib/nube";
 import Tabla from "./screens/Tabla";
 import Nomina from "./screens/Nomina";
@@ -59,6 +59,7 @@ export default function App() {
   const [bannerJugador, setBannerJugador] = useState(null); // jugador que cambia banner
   const [resetJugador, setResetJugador] = useState(null); // jugador que resetea su PIN por correo
   const [caraACara, setCaraACara] = useState(null); // { a? } comparación de dos jugadores
+  const [sorteo, setSorteo] = useState(null); // último sorteo de la ruleta (solo local)
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
@@ -111,6 +112,7 @@ export default function App() {
       setFotos(await leerJSON(K_FOTOS, {}));
       setBanners(await leerJSON(K_BANNERS, {}));
       setFrases(await leerJSON(K_FRASES, {}));
+      setSorteo(await leerJSON(K_SORTEO, null));
       if (!nube.nubeActiva()) setEsAdmin(true); // sin nube, este teléfono manda
       setCargado(true);
       await refrescarNube(true); // esto también trae el estado del administrador
@@ -227,6 +229,29 @@ export default function App() {
     const res = await nube.votarMVP(partidoId, votanteId, pin, votadoId); // lanza si falla
     setVotos((v) => ({ ...v, [partidoId]: res }));
     setAviso("¡Voto registrado! 🗳️");
+  };
+
+  // El administrador manda sobre la votación del MVP: la puede cerrar antes de las
+  // 2 horas, o reabrirla (útil si el partido se registró antes de jugarlo).
+  const cambiarVotacion = (partidoId, abrir) =>
+    conPermiso(abrir ? "Reabrir la votación" : "Cerrar la votación", () => {
+      setPartidos((ps) =>
+        ps.map((p) =>
+          p.id !== partidoId
+            ? p
+            : abrir
+              ? { ...p, votacionCerrada: false, votaDesde: Date.now() }
+              : { ...p, votacionCerrada: true }
+        )
+      );
+      setAviso(abrir ? "Votación reabierta por 2 horas." : "Votación cerrada. Ya se ve el MVP.");
+    });
+
+  // El sorteo de la ruleta se guarda en este teléfono (no en la nube): sirve para
+  // prellenar los equipos del partido sin tener que asignarlos a mano otra vez.
+  const guardarSorteo = (s) => {
+    setSorteo(s);
+    guardarJSON(K_SORTEO, s);
   };
 
   const guardarPartido = (p) =>
@@ -366,7 +391,13 @@ export default function App() {
             ) : tab === "trofeos" ? (
               <Vitrina tabla={tabla} partidos={partidos} votos={votos} jugadores={jugadores} abrirJugador={setFicha} />
             ) : (
-              <Ruleta jugadores={jugadores} tabla={tabla} ultimoPartido={ultimoPartido} />
+              <Ruleta
+                jugadores={jugadores}
+                tabla={tabla}
+                ultimoPartido={ultimoPartido}
+                onSorteo={guardarSorteo}
+                onRegistrar={(s) => { guardarSorteo(s); setEditor({ nuevo: true, paso: 1, sorteo: s, aplicar: true }); }}
+              />
             )}
           </main>
 
@@ -449,6 +480,8 @@ export default function App() {
           <EditorPartido
             inicial={editor.p}
             pasoInicial={editor.paso}
+            sorteo={editor.sorteo || sorteo}
+            aplicarSorteo={!!editor.aplicar}
             jugadores={jugadores}
             ultimoPartido={ultimoPartido}
             guardar={guardarPartido}
@@ -499,6 +532,8 @@ export default function App() {
             onEditarDatos={() => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p, paso: 2 }); }}
             onEditarResultado={puedeEditar ? () => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p, paso: 3 }); } : undefined}
             onBorrar={() => setConfirmar({ tipo: "partido", id: votarPartido.id })}
+            onCerrarVotacion={() => cambiarVotacion(votarPartido.id, false)}
+            onAbrirVotacion={() => cambiarVotacion(votarPartido.id, true)}
             onCerrar={() => setVotarPartido(null)}
           />
         )}

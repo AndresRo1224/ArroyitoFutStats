@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Crown, Check, Loader2, Trophy, CheckCircle2 } from "lucide-react";
+import { Crown, Check, Loader2, Trophy, CheckCircle2, Lock, Unlock } from "lucide-react";
 import { C, NUM, SOMBRA } from "../tema";
 import { Avatar, Boton, Rotulo } from "../components/ui";
 import { nombreCorto, votacionAbierta, cierreVotacion, mvpDePartido } from "../lib/util";
@@ -13,7 +13,7 @@ const faltaTexto = (ms) => {
 
 // Contenido de la votación del MVP (sin encabezado): se usa dentro de la pestaña
 // "MVP" del detalle del partido. Cada asistente vota una vez con su PIN personal.
-export default function VotacionMVP({ partido, jugadores, votos, onVotar }) {
+export default function VotacionMVP({ partido, jugadores, votos, onVotar, esAdmin, onCerrarVotacion, onAbrirVotacion }) {
   const nombreDe = useMemo(() => Object.fromEntries(jugadores.map((j) => [j.id, j.nombre])), [jugadores]);
   const presentes = partido.att.filter((id) => nombreDe[id]);
   const abierta = votacionAbierta(partido);
@@ -77,6 +77,19 @@ export default function VotacionMVP({ partido, jugadores, votos, onVotar }) {
           </div>
         )}
       </div>
+
+      {/* El administrador manda sobre la votación */}
+      {esAdmin && (abierta ? onCerrarVotacion : onAbrirVotacion) && (
+        <button
+          onClick={abierta ? onCerrarVotacion : onAbrirVotacion}
+          className="w-full mt-2 flex items-center justify-center gap-2 rounded-2xl py-2.5 text-sm font-bold active:scale-[0.99] transition"
+          style={{ background: C.tarjeta, color: abierta ? C.alerta : C.primario, boxShadow: SOMBRA }}
+        >
+          {abierta
+            ? <><Lock size={15} /> Cerrar la votación ahora</>
+            : <><Unlock size={15} /> Reabrir la votación · 2 horas más</>}
+        </button>
+      )}
 
       {/* Ya votó: confirmación clara */}
       {abierta && yaVote && (

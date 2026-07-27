@@ -25,6 +25,7 @@ export default function DetallePartido({
   const totalG = presentes.reduce((s, id) => s + ((partido.g && partido.g[id]) || 0), 0);
   const totalA = presentes.reduce((s, id) => s + ((partido.a && partido.a[id]) || 0), 0);
   const totalAt = presentes.reduce((s, id) => s + ((partido.at && partido.at[id]) || 0), 0);
+  const totalAg = presentes.reduce((s, id) => s + ((partido.ag && partido.ag[id]) || 0), 0);
   const conVotacion = votacionAbierta(partido);
   const mvp = mvpDePartido(partido, (votos && votos.conteo) || {});
 
@@ -104,6 +105,12 @@ export default function DetallePartido({
                 <div style={{ ...NUM, color: PETOS[5].hex, fontSize: 22, fontWeight: 800 }}>{totalAt}</div>
                 <div style={ROTULO}>Atajadas</div>
               </div>
+              {totalAg > 0 && (
+                <div className="flex-1 rounded-2xl py-3 text-center" style={tarjeta}>
+                  <div style={{ ...NUM, color: C.alerta, fontSize: 22, fontWeight: 800 }}>{totalAg}</div>
+                  <div style={ROTULO}>Autogol</div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between mb-2">
@@ -119,6 +126,7 @@ export default function DetallePartido({
                 const g = (partido.g && partido.g[id]) || 0;
                 const a = (partido.a && partido.a[id]) || 0;
                 const at = (partido.at && partido.at[id]) || 0;
+                const ag = (partido.ag && partido.ag[id]) || 0;
                 return (
                   <div key={id} className="flex items-center gap-2 px-3 py-2.5" style={{ borderTop: i ? `1px solid ${C.linea}` : "none" }}>
                     <Avatar id={id} nombre={nombreDe[id]} tam={30} />
@@ -126,8 +134,11 @@ export default function DetallePartido({
                     <div style={{ ...NUM, color: C.oro, fontSize: 13, fontWeight: 700, width: 30, textAlign: "right" }}>{g}G</div>
                     <div style={{ ...NUM, color: PETOS[1].hex, fontSize: 13, fontWeight: 700, width: 30, textAlign: "right" }}>{a}A</div>
                     <div style={{ ...NUM, color: PETOS[5].hex, fontSize: 13, fontWeight: 700, width: 38, textAlign: "right" }}>{at}AT</div>
+                    {ag > 0 && (
+                      <div style={{ ...NUM, color: C.alerta, fontSize: 13, fontWeight: 800, width: 38, textAlign: "right" }}>{ag}AG</div>
+                    )}
                     <div className="rounded-lg px-2 py-0.5 ml-1" style={{ ...NUM, background: `${C.primario}18`, color: C.primarioOsc, fontSize: 12, fontWeight: 800, minWidth: 38, textAlign: "center" }}>
-                      {dec1(notaPartido(g, a, at))}
+                      {dec1(notaPartido(g, a, at, ag))}
                     </div>
                   </div>
                 );

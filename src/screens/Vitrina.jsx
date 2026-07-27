@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
-import { Trophy, Zap, Target, Calendar, Crown, Medal } from "lucide-react";
+import { Trophy, Zap, Target, Calendar, Crown, Medal, Frown } from "lucide-react";
 import { C, NUM, ROTULO, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Vacio } from "../components/ui";
 import { calcularTrofeos, nombreCorto } from "../lib/util";
 
-const ICONO = { goleador: Trophy, asistidor: Zap, nota: Target, constante: Calendar, reyMvp: Crown };
+const ICONO = { goleador: Trophy, asistidor: Zap, nota: Target, constante: Calendar, reyMvp: Crown, topo: Frown };
 
 export default function Vitrina({ tabla, partidos, votos, jugadores, abrirJugador }) {
   const { titulos, mvp } = useMemo(
@@ -41,6 +41,7 @@ export default function Vitrina({ tabla, partidos, votos, jugadores, abrirJugado
       <div className="px-4 pt-4 space-y-2">
         {titulos.map((t) => {
           const Ico = ICONO[t.clave] || Trophy;
+          const tono = t.tono === "alerta" ? C.alerta : C.oro;
           return (
             <button
               key={t.clave}
@@ -48,8 +49,8 @@ export default function Vitrina({ tabla, partidos, votos, jugadores, abrirJugado
               className="w-full rounded-2xl p-3.5 flex items-center gap-3 text-left active:scale-[0.99] transition"
               style={{ background: C.tarjeta, boxShadow: SOMBRA }}
             >
-              <div className="rounded-xl p-2.5 shrink-0" style={{ background: `${C.oro}18` }}>
-                <Ico size={20} color={C.oro} />
+              <div className="rounded-xl p-2.5 shrink-0" style={{ background: `${tono}18` }}>
+                <Ico size={20} color={tono} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-extrabold text-sm" style={{ color: C.tinta }}>{t.nombre}</div>
@@ -59,9 +60,9 @@ export default function Vitrina({ tabla, partidos, votos, jugadores, abrirJugado
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right">
                     <div className="text-sm font-bold truncate" style={{ color: C.tinta, maxWidth: 96 }}>{nombreCorto(t.jugador.nombre)}</div>
-                    <div style={{ ...NUM, color: C.oro, fontSize: 11, fontWeight: 700 }}>{t.valor(t.jugador)}</div>
+                    <div style={{ ...NUM, color: tono, fontSize: 11, fontWeight: 700 }}>{t.valor(t.jugador)}</div>
                   </div>
-                  <Avatar id={t.jugador.id} nombre={t.jugador.nombre} tam={40} borde={C.oro} />
+                  <Avatar id={t.jugador.id} nombre={t.jugador.nombre} tam={40} borde={tono} />
                 </div>
               ) : (
                 <div className="text-xs" style={{ color: C.humo }}>Sin dueño aún</div>

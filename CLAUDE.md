@@ -38,6 +38,7 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     g: { ab12cd3: 2 },            // goles por jugador
     a: { ab12cd3: 1 },            // asistencias por jugador
     at: { ab12cd3: 0 },           // atajadas por jugador (arqueros)
+    ag: { ab12cd3: 0 },           // autogoles por jugador (restan nota)
     creado: 1690000000000,        // ms; abre la ventana de votación del MVP (24h)
   }]
 }
@@ -55,12 +56,16 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     `BANNERS` (tema.js); lo elige el jugador con su PIN. No es una imagen: no pesa.
   - Los **trofeos son calculados** (`calcularTrofeos` en util), históricos: títulos actuales
     (goleador, asistidor, mejor nota, más constante, rey del MVP) + MVP acumulado por partido.
+    Hay además un trofeo "de la vergüenza" **El Topo** (más autogoles), que solo aparece si
+    alguien tiene autogoles y se pinta en rojo (`tono: "alerta"`) en `Vitrina` y la ficha.
     La pantalla `Vitrina` (5º tab) y la ficha los muestran.
-- **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a, at)` en
-  `src/lib/util.js` da la nota de un partido: `6.0 + 0.8·goles + 0.5·asistencias + 0.1·atajadas`,
-  con tope 10. `calcularTabla` promedia esas notas partido a partido (el tope se aplica a cada
-  partido, no a los totales). Es lo que la UI muestra como **NOTA** y lo que usa la ruleta
-  para "repartir parejo".
+- **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a, at, ag)` en
+  `src/lib/util.js` da la nota de un partido:
+  `6.0 + 0.8·goles + 0.5·asistencias + 0.1·atajadas − 1.0·autogoles`, acotada a `[0, 10]`
+  (tope 10 y piso 0). `calcularTabla` promedia esas notas partido a partido (los límites se
+  aplican a cada partido, no a los totales). Es lo que la UI muestra como **NOTA** y lo que usa
+  la ruleta para "repartir parejo". Los autogoles se editan en `EditorPartido` (fila roja) y se
+  ven en `DetallePartido` y en la ficha (sufijo `AG`, en rojo, solo cuando hay).
 - Las fotos van aparte porque son pesadas; se comprimen a 240×240 JPEG antes de guardar.
 - Un jugador borrado desaparece de la nómina pero sus ids pueden seguir en partidos viejos:
   todo lo que recorre `att` debe tolerar ids desconocidos (ver `calcularTabla`).

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar } from "lucide-react";
+import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Frown } from "lucide-react";
 import { C, PETOS, NUM, SOMBRA, bannerCss } from "../tema";
 import { Avatar, Rotulo, Marcador } from "../components/ui";
 import { dec, dec1, fechaCorta, notaPartido } from "../lib/util";
@@ -10,6 +10,7 @@ const TROFEO = {
   nota: { nombre: "Mejor promedio", Ico: Target },
   constante: { nombre: "Inoxidable", Ico: Calendar },
   reyMvp: { nombre: "Rey del MVP", Ico: Crown },
+  topo: { nombre: "El Topo", Ico: Frown, tono: "alerta" },
 };
 
 export default function FichaJugador({
@@ -90,9 +91,10 @@ export default function FichaJugador({
               const meta = TROFEO[clave];
               if (!meta) return null;
               const Ico = meta.Ico;
+              const tono = meta.tono === "alerta" ? C.alerta : C.oro;
               return (
-                <div key={clave} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: `${C.oro}1A`, boxShadow: `inset 0 0 0 1px ${C.oro}55` }}>
-                  <Ico size={14} color={C.oro} />
+                <div key={clave} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: `${tono}1A`, boxShadow: `inset 0 0 0 1px ${tono}55` }}>
+                  <Ico size={14} color={tono} />
                   <span className="text-xs font-bold" style={{ color: C.tinta }}>{meta.nombre}</span>
                 </div>
               );
@@ -190,11 +192,16 @@ export default function FichaJugador({
                 <div style={{ ...NUM, color: PETOS[5].hex, fontSize: 13, fontWeight: 700, width: 40, textAlign: "right" }}>
                   {(p.at && p.at[jugador.id]) || 0}AT
                 </div>
+                {((p.ag && p.ag[jugador.id]) || 0) > 0 && (
+                  <div style={{ ...NUM, color: C.alerta, fontSize: 13, fontWeight: 800, width: 38, textAlign: "right" }}>
+                    {p.ag[jugador.id]}AG
+                  </div>
+                )}
                 <div
                   className="rounded-lg px-2 py-0.5 ml-2"
                   style={{ ...NUM, background: `${C.primario}18`, color: C.primarioOsc, fontSize: 12, fontWeight: 800, minWidth: 38, textAlign: "center" }}
                 >
-                  {dec1(notaPartido((p.g && p.g[jugador.id]) || 0, (p.a && p.a[jugador.id]) || 0, (p.at && p.at[jugador.id]) || 0))}
+                  {dec1(notaPartido((p.g && p.g[jugador.id]) || 0, (p.a && p.a[jugador.id]) || 0, (p.at && p.at[jugador.id]) || 0, (p.ag && p.ag[jugador.id]) || 0))}
                 </div>
               </div>
             ))

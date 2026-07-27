@@ -11,6 +11,7 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
   const [g, setG] = useState(inicial ? { ...inicial.g } : {});
   const [a, setA] = useState(inicial ? { ...inicial.a } : {});
   const [at, setAt] = useState(inicial ? { ...inicial.at } : {}); // atajadas
+  const [ag, setAg] = useState(inicial ? { ...inicial.ag } : {}); // autogoles (restan)
   const [paso, setPaso] = useState(pasoInicial || (inicial ? 2 : 1));
 
   const nombreDe = Object.fromEntries(jugadores.map((j) => [j.id, j.nombre]));
@@ -74,6 +75,7 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
                   { et: "Goles", obj: g, set: setG, col: C.oro },
                   { et: "Asist.", obj: a, set: setA, col: PETOS[1].hex },
                   { et: "Atajadas", obj: at, set: setAt, col: PETOS[5].hex },
+                  { et: "Autogol", obj: ag, set: setAg, col: C.alerta },
                 ].map((f) => (
                   <div key={f.et} className="flex items-center gap-3 mt-2">
                     <div className="w-14" style={{ ...ROTULO, color: f.col }}>{f.et}</div>
@@ -111,7 +113,7 @@ export default function EditorPartido({ inicial, jugadores, ultimoPartido, guard
             Siguiente · {att.length} jugadores
           </Boton>
         ) : (
-          <Boton ancho onClick={() => guardar({ id: inicial ? inicial.id : uid(), fecha, att, g, a, at })}>
+          <Boton ancho onClick={() => guardar({ id: inicial ? inicial.id : uid(), fecha, att, g, a, at, ag })}>
             <Check size={17} /> Guardar partido
           </Boton>
         )}

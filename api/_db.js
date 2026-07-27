@@ -132,6 +132,7 @@ export function sanearDatos(body) {
       g: numMap(p.g),
       a: numMap(p.a),
       at: numMap(p.at), // atajadas
+      ag: numMap(p.ag), // autogoles (restan nota)
       creado: Number.isFinite(p.creado) ? p.creado : Date.now(),
     }));
 

@@ -1,12 +1,13 @@
 import React, { useMemo } from "react";
-import { Trophy, Zap, Target, Calendar, Crown, Medal, Frown, Hand, Award, Star, Flame, Ghost } from "lucide-react";
+import { Trophy, Zap, Target, Calendar, Crown, Medal, Frown, Hand, Award, Star, Flame, Ghost, Rocket } from "lucide-react";
 import { C, NUM, ROTULO, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Vacio } from "../components/ui";
 import { calcularTrofeos, nombreCorto } from "../lib/util";
 
 const ICONO = {
   goleador: Trophy, asistidor: Zap, nota: Target, constante: Calendar, reyMvp: Crown,
-  muro: Hand, hattrick: Award, mes: Star, racha: Flame, topo: Frown, fantasma: Ghost,
+  muro: Hand, hattrick: Award, mes: Star, racha: Flame, campeon: Medal, imparable: Rocket,
+  topo: Frown, fantasma: Ghost,
 };
 
 export default function Vitrina({ tabla, partidos, votos, jugadores, abrirJugador }) {

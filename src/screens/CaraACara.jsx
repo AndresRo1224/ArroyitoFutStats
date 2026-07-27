@@ -32,7 +32,9 @@ export default function CaraACara({ jugadores, tabla, partidos, trofeos, inicial
     { et: "Goles/partido", num: (t) => t.promGoles, txt: (t) => (t.pj ? dec(t.promGoles) : "—"), mejor: "alto" },
     { et: "% Asistencia", num: (t) => t.presencia, txt: (t) => `${Math.round(t.presencia * 100)}%`, mejor: "alto" },
     { et: "MVP", num: (t) => mvpDe(t.id), txt: (t) => mvpDe(t.id), mejor: "alto" },
+    { et: "Victorias", num: (t) => t.victorias, txt: (t) => t.victorias, mejor: "alto" },
     { et: "Racha goleadora", num: (t) => rachasJugador(t.id, partidos).goleadora, txt: (t) => rachasJugador(t.id, partidos).goleadora, mejor: "alto" },
+    { et: "Racha ganadora", num: (t) => rachasJugador(t.id, partidos).victorias, txt: (t) => rachasJugador(t.id, partidos).victorias, mejor: "alto" },
     { et: "Autogoles", num: (t) => t.autogoles, txt: (t) => t.autogoles, mejor: "bajo" },
   ];
 

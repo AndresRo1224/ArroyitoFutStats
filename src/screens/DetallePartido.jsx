@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, Trash2, Users, ListChecks, Trophy, Pencil } from "lucide-react";
+import { ArrowLeft, Trash2, Users, ListChecks, Trophy, Pencil, Swords } from "lucide-react";
 import { C, PETOS, NUM, ROTULO, SOMBRA } from "../tema";
 import { Avatar, Boton, Rotulo } from "../components/ui";
-import { dec1, fechaLarga, notaPartido, votacionAbierta, mvpDePartido } from "../lib/util";
+import { dec1, fechaLarga, notaPartido, votacionAbierta, mvpDePartido, partidoConResultado, equipoGanador } from "../lib/util";
 import VotacionMVP from "./VotacionMVP";
 
 const TABS = [
@@ -15,7 +15,7 @@ const TABS = [
 // votación del MVP. El administrador puede editar cada uno o borrar el partido.
 export default function DetallePartido({
   partido, jugadores, votos, onVotar, esAdmin,
-  onEditarAsistencia, onEditarDatos, onBorrar, onCerrar,
+  onEditarAsistencia, onEditarDatos, onEditarResultado, onBorrar, onCerrar,
 }) {
   const [tab, setTab] = useState("datos");
   const nombreDe = useMemo(() => Object.fromEntries(jugadores.map((j) => [j.id, j.nombre])), [jugadores]);
@@ -28,6 +28,10 @@ export default function DetallePartido({
   const totalAg = presentes.reduce((s, id) => s + ((partido.ag && partido.ag[id]) || 0), 0);
   const conVotacion = votacionAbierta(partido);
   const mvp = mvpDePartido(partido, (votos && votos.conteo) || {});
+
+  const conResultado = partidoConResultado(partido);
+  const ganador = equipoGanador(partido);
+  const marc = conResultado ? partido.marcador : [];
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: C.fondo }}>
@@ -92,6 +96,44 @@ export default function DetallePartido({
 
         {tab === "datos" && (
           <>
+            {conResultado ? (
+              <div className="rounded-2xl p-3 mb-3" style={tarjeta}>
+                <div className="flex items-center justify-between mb-2">
+                  <Rotulo>Marcador</Rotulo>
+                  {esAdmin && onEditarResultado && (
+                    <button onClick={onEditarResultado} className="text-xs font-bold flex items-center gap-1" style={{ color: C.primario }}>
+                      <Pencil size={13} /> Editar
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-stretch gap-2">
+                  {marc.map((golT, t) => {
+                    const gana = ganador === t;
+                    return (
+                      <div key={t} className="flex-1 rounded-xl py-2 text-center" style={{ background: gana ? `${PETOS[t].hex}1A` : C.tarjeta2, boxShadow: gana ? `inset 0 0 0 1.5px ${PETOS[t].hex}` : "none" }}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <div className="rounded-full" style={{ width: 10, height: 10, background: PETOS[t].hex }} />
+                          <div className="text-xs font-bold truncate" style={{ color: C.tinta }}>{PETOS[t].nombre}</div>
+                        </div>
+                        <div style={{ ...NUM, color: gana ? PETOS[t].hex : C.tinta, fontSize: 26, fontWeight: 800, lineHeight: 1.15 }}>{golT}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="text-center text-xs font-bold mt-2" style={{ color: ganador < 0 ? C.humo : PETOS[ganador].hex }}>
+                  {ganador < 0 ? "Empate 🤝" : `Ganó ${PETOS[ganador].nombre} 🏆`}
+                </div>
+              </div>
+            ) : esAdmin && onEditarResultado ? (
+              <button
+                onClick={onEditarResultado}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 mb-3 font-bold text-sm active:scale-[0.99] transition"
+                style={{ ...tarjeta, color: C.primario }}
+              >
+                <Swords size={16} /> Registrar resultado y equipos
+              </button>
+            ) : null}
+
             <div className="flex gap-3 mb-3">
               <div className="flex-1 rounded-2xl py-3 text-center" style={tarjeta}>
                 <div style={{ ...NUM, color: C.oro, fontSize: 22, fontWeight: 800 }}>{totalG}</div>
@@ -130,6 +172,9 @@ export default function DetallePartido({
                 return (
                   <div key={id} className="flex items-center gap-2 px-3 py-2.5" style={{ borderTop: i ? `1px solid ${C.linea}` : "none" }}>
                     <Avatar id={id} nombre={nombreDe[id]} tam={30} />
+                    {partido.equipo && partido.equipo[id] !== undefined && (
+                      <div className="rounded-full shrink-0" style={{ width: 9, height: 9, background: PETOS[partido.equipo[id]].hex }} title={PETOS[partido.equipo[id]].nombre} />
+                    )}
                     <div className="flex-1 text-sm font-semibold truncate" style={{ color: C.tinta }}>{nombreDe[id]}</div>
                     <div style={{ ...NUM, color: C.oro, fontSize: 13, fontWeight: 700, width: 30, textAlign: "right" }}>{g}G</div>
                     <div style={{ ...NUM, color: PETOS[1].hex, fontSize: 13, fontWeight: 700, width: 30, textAlign: "right" }}>{a}A</div>

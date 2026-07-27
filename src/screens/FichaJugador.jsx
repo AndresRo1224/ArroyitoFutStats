@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Frown, Hand, Award, Star, Flame, Ghost, Swords } from "lucide-react";
+import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Frown, Hand, Award, Star, Flame, Ghost, Swords, Medal, Rocket } from "lucide-react";
 import { C, PETOS, NUM, SOMBRA, bannerCss } from "../tema";
 import { Avatar, Rotulo, Marcador } from "../components/ui";
 import { dec, dec1, fechaCorta, notaPartido, rachasJugador } from "../lib/util";
@@ -14,6 +14,8 @@ const TROFEO = {
   hattrick: { nombre: "Hat-trick", Ico: Award },
   mes: { nombre: "Jugador del Mes", Ico: Star },
   racha: { nombre: "En racha", Ico: Flame },
+  campeon: { nombre: "El Campeón", Ico: Medal },
+  imparable: { nombre: "Imparable", Ico: Rocket },
   topo: { nombre: "El Topo", Ico: Frown, tono: "alerta" },
   fantasma: { nombre: "El Fantasma", Ico: Ghost, tono: "alerta" },
 };
@@ -109,8 +111,14 @@ export default function FichaJugador({
         )}
 
         {/* Rachas actuales (solo si están vivas) */}
-        {(racha.goleadora >= 2 || racha.asistencia >= 3) && (
+        {(racha.goleadora >= 2 || racha.asistencia >= 3 || racha.victorias >= 2) && (
           <div className="flex flex-wrap gap-2 mt-3">
+            {racha.victorias >= 2 && (
+              <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: `${C.oro}14`, boxShadow: `inset 0 0 0 1px ${C.oro}55` }}>
+                <Rocket size={14} color={C.oro} />
+                <span className="text-xs font-bold" style={{ color: C.tinta }}>{racha.victorias} victorias seguidas</span>
+              </div>
+            )}
             {racha.goleadora >= 2 && (
               <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: `${C.alerta}12`, boxShadow: `inset 0 0 0 1px ${C.alerta}44` }}>
                 <Flame size={14} color={C.alerta} />
@@ -123,6 +131,21 @@ export default function FichaJugador({
                 <span className="text-xs font-bold" style={{ color: C.tinta }}>Vino a {racha.asistencia} seguidos</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Récord de resultados (solo si ya jugó partidos con marcador) */}
+        {(stats.victorias + stats.empates + stats.derrotas) > 0 && (
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            <div className="rounded-2xl py-3" style={tarjeta}>
+              <Marcador valor={stats.victorias} etiqueta="Ganados" color="#12A150" />
+            </div>
+            <div className="rounded-2xl py-3" style={tarjeta}>
+              <Marcador valor={stats.empates} etiqueta="Empates" color={C.oro} />
+            </div>
+            <div className="rounded-2xl py-3" style={tarjeta}>
+              <Marcador valor={stats.derrotas} etiqueta="Perdidos" color="#F04438" />
+            </div>
           </div>
         )}
 

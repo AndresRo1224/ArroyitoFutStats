@@ -39,6 +39,8 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     a: { ab12cd3: 1 },            // asistencias por jugador
     at: { ab12cd3: 0 },           // atajadas por jugador (arqueros)
     ag: { ab12cd3: 0 },           // autogoles por jugador (restan nota)
+    equipo: { ab12cd3: 0 },       // índice de equipo (0..5) de cada jugador, para el marcador
+    marcador: [3, 2],             // goles por equipo; gana el de más (empate si hay tope repetido)
     creado: 1690000000000,        // ms; abre la ventana de votación del MVP (24h)
   }]
 }
@@ -67,9 +69,19 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     contadas desde el partido más reciente (requiere `partidos` en orden descendente). Se ven
     como chips en la ficha y alimentan el trofeo "En racha".
   - **Cara a Cara** (`src/screens/CaraACara.jsx`): compara dos jugadores lado a lado (stats de
-    la tabla + MVP + racha), resalta quién gana cada categoría y declara ganador. Se abre desde
-    la Nómina (botón "Cara a Cara") o desde la ficha ("Comparar con otro", preselecciona). No
-    toca el modelo de datos.
+    la tabla + MVP + rachas + victorias), resalta quién gana cada categoría y declara ganador.
+    Se abre desde la Nómina (botón "Cara a Cara") o desde la ficha ("Comparar con otro",
+    preselecciona). No toca el modelo de datos.
+  - **Marcador y resultados:** un partido puede llevar `equipo` (id→índice de equipo) y
+    `marcador` (goles por equipo). `resultadoJugador(id, p)` da 'V'/'E'/'D'/null (null si el
+    partido no tiene resultado o el jugador no quedó en ningún equipo); `equipoGanador(p)` y
+    `partidoConResultado(p)` en util. `calcularTabla` suma `victorias/empates/derrotas`;
+    `rachasJugador` añade la racha ganadora. Trofeos: **El Campeón** (más victorias) e
+    **Imparable** (racha de victorias activa). Se registra en `EditorPartido` (3er paso
+    "Resultado y equipos": nº de equipos + marcador + asignar cada asistente a un color) y se ve
+    en `DetallePartido` (marcador con ganador + punto de color por jugador) y en la ficha
+    (récord Ganados/Empates/Perdidos + chip de racha). El resultado es **opcional**: si no se
+    asigna a nadie, el partido no guarda `equipo`/`marcador`.
 - **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a, at, ag)` en
   `src/lib/util.js` da la nota de un partido:
   `6.0 + 0.8·goles + 0.5·asistencias + 0.1·atajadas − 1.0·autogoles`, acotada a `[0, 10]`

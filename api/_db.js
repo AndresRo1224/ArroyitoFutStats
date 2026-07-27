@@ -122,6 +122,19 @@ export function sanearDatos(body) {
     }
     return out;
   };
+  // Mapa id→índice de equipo (0..5). Descarta ids/valores fuera de rango.
+  const equipoMap = (o) => {
+    const out = {};
+    if (o && typeof o === "object" && !Array.isArray(o)) {
+      for (const k of Object.keys(o)) {
+        if (idValido(k) && Number.isFinite(o[k])) {
+          const v = Math.trunc(o[k]);
+          if (v >= 0 && v < 6) out[k] = v;
+        }
+      }
+    }
+    return out;
+  };
   const partidos = (Array.isArray(body.partidos) ? body.partidos : [])
     .slice(0, LIM.partidos)
     .filter((p) => p && idValido(p.id) && fechaValida(p.fecha) && Array.isArray(p.att))
@@ -133,6 +146,10 @@ export function sanearDatos(body) {
       a: numMap(p.a),
       at: numMap(p.at), // atajadas
       ag: numMap(p.ag), // autogoles (restan nota)
+      equipo: equipoMap(p.equipo), // id → índice de equipo (para el marcador)
+      marcador: Array.isArray(p.marcador)
+        ? p.marcador.slice(0, 6).map((x) => (Number.isFinite(x) ? Math.max(0, Math.min(99, Math.trunc(x))) : 0))
+        : [],
       creado: Number.isFinite(p.creado) ? p.creado : Date.now(),
     }));
 

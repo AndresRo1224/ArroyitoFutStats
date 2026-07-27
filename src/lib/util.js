@@ -99,6 +99,34 @@ export function comprimirBanner(file, ancho = 800, alto = 280, calidad = 0.72) {
   });
 }
 
+// Resultado de UN jugador en UN partido según el marcador y su equipo.
+//  'V' ganó · 'E' empató (empate arriba entre 2+ equipos) · 'D' perdió · null si
+//  ese partido no tiene resultado registrado o el jugador no quedó en ningún equipo.
+export function resultadoJugador(id, partido) {
+  const mk = partido && partido.marcador;
+  const eq = partido && partido.equipo;
+  if (!Array.isArray(mk) || mk.length < 2 || !eq) return null;
+  const t = eq[id];
+  if (t === undefined || t === null || t >= mk.length) return null;
+  const max = Math.max(...mk);
+  const empatanArriba = mk.filter((x) => x === max).length;
+  if (mk[t] === max) return empatanArriba > 1 ? "E" : "V";
+  return "D";
+}
+
+// ¿El partido tiene un resultado registrado? (marcador + equipos)
+export const partidoConResultado = (p) =>
+  !!(p && Array.isArray(p.marcador) && p.marcador.length >= 2 && p.equipo && Object.keys(p.equipo).length);
+
+// Índice del equipo ganador (o -1 si empate / sin resultado).
+export function equipoGanador(partido) {
+  if (!partidoConResultado(partido)) return -1;
+  const mk = partido.marcador;
+  const max = Math.max(...mk);
+  if (mk.filter((x) => x === max).length > 1) return -1; // empate arriba
+  return mk.indexOf(max);
+}
+
 // Tabla general.
 //  - prom = (goles + asistencias) / partidos jugados (dato crudo)
 //  - nota = promedio de las notas de cada partido, en escala 0-10
@@ -107,7 +135,7 @@ export function comprimirBanner(file, ancho = 800, alto = 280, calidad = 0.72) {
 export function calcularTabla(jugadores, partidos) {
   const base = {};
   jugadores.forEach((j) => {
-    base[j.id] = { id: j.id, nombre: j.nombre, pj: 0, goles: 0, asis: 0, atajadas: 0, autogoles: 0, sumaNotas: 0 };
+    base[j.id] = { id: j.id, nombre: j.nombre, pj: 0, goles: 0, asis: 0, atajadas: 0, autogoles: 0, victorias: 0, empates: 0, derrotas: 0, sumaNotas: 0 };
   });
   partidos.forEach((p) =>
     p.att.forEach((id) => {
@@ -122,6 +150,10 @@ export function calcularTabla(jugadores, partidos) {
       base[id].atajadas += at;
       base[id].autogoles += ag;
       base[id].sumaNotas += notaPartido(g, a, at, ag);
+      const r = resultadoJugador(id, p);
+      if (r === "V") base[id].victorias += 1;
+      else if (r === "E") base[id].empates += 1;
+      else if (r === "D") base[id].derrotas += 1;
     })
   );
   return Object.values(base).map((t) => ({
@@ -135,7 +167,8 @@ export function calcularTabla(jugadores, partidos) {
 }
 
 export const filaVacia = {
-  pj: 0, goles: 0, asis: 0, atajadas: 0, autogoles: 0, sumaNotas: 0, promGoles: 0, promAsis: 0, prom: 0, nota: 0, presencia: 0,
+  pj: 0, goles: 0, asis: 0, atajadas: 0, autogoles: 0, victorias: 0, empates: 0, derrotas: 0,
+  sumaNotas: 0, promGoles: 0, promAsis: 0, prom: 0, nota: 0, presencia: 0,
 };
 
 // --- Votación del MVP ---
@@ -175,7 +208,15 @@ export function rachasJugador(id, partidos) {
     if (((p.g && p.g[id]) || 0) > 0) goleadora++;
     else break;
   }
-  return { asistencia, goleadora };
+  // Racha ganadora: partidos CON resultado, los más recientes seguidos ganando.
+  let victorias = 0;
+  for (const p of partidos) {
+    const r = resultadoJugador(id, p);
+    if (r === null) continue; // partidos sin resultado no cuentan ni cortan
+    if (r === "V") victorias++;
+    else break;
+  }
+  return { asistencia, goleadora, victorias };
 }
 
 // Trofeos históricos. Recibe la tabla ya calculada, los partidos y los votos
@@ -241,6 +282,18 @@ export function calcularTrofeos(tabla, partidos, votosPorPartido = {}) {
     if (r >= 2 && (!enRacha || r > enRacha.r)) enRacha = { id: t.id, r };
   });
   if (enRacha) titulos.push({ clave: "racha", nombre: "En racha 🔥", detalle: "Racha goleadora activa", jugador: mapa[enRacha.id], valor: () => `${enRacha.r} seguidos anotando` });
+
+  // El Campeón: más victorias (solo si ya hay partidos con resultado).
+  const campeon = lider("victorias");
+  if (campeon) titulos.push({ clave: "campeon", nombre: "El Campeón 🏆", detalle: "Más victorias", jugador: campeon, valor: (t) => `${t.victorias} victoria${t.victorias === 1 ? "" : "s"}` });
+
+  // Imparable: mayor racha de victorias ACTIVA del grupo (mínimo 2 seguidas).
+  let imparable = null;
+  tabla.forEach((t) => {
+    const r = rachasJugador(t.id, partidos).victorias;
+    if (r >= 2 && (!imparable || r > imparable.r)) imparable = { id: t.id, r };
+  });
+  if (imparable) titulos.push({ clave: "imparable", nombre: "Imparable 🚀", detalle: "Racha de victorias activa", jugador: mapa[imparable.id], valor: () => `${imparable.r} seguidas ganando` });
 
   // Trofeo "de la vergüenza": solo aparece si de verdad alguien metió autogol.
   const topo = lider("autogoles");

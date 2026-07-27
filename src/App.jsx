@@ -497,6 +497,7 @@ export default function App() {
             esAdmin={puedeEditar}
             onEditarAsistencia={() => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p, paso: 1 }); }}
             onEditarDatos={() => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p, paso: 2 }); }}
+            onEditarResultado={puedeEditar ? () => { const p = partidos.find((x) => x.id === votarPartido.id); setVotarPartido(null); setEditor({ p, paso: 3 }); } : undefined}
             onBorrar={() => setConfirmar({ tipo: "partido", id: votarPartido.id })}
             onCerrar={() => setVotarPartido(null)}
           />

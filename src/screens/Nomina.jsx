@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { Users, Plus, Camera, KeyRound, ChevronRight } from "lucide-react";
+import { Users, Plus, Camera, KeyRound, ChevronRight, Swords } from "lucide-react";
 import { C, NUM, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Boton, Vacio } from "../components/ui";
 import { dec1 } from "../lib/util";
 
-export default function Nomina({ jugadores, tabla, agregar, abrirJugador, pedirFoto, esAdmin, verPines }) {
+export default function Nomina({ jugadores, tabla, agregar, abrirJugador, pedirFoto, esAdmin, verPines, comparar }) {
   const [nombre, setNombre] = useState("");
   const mapa = useMemo(() => Object.fromEntries(tabla.map((t) => [t.id, t])), [tabla]);
 
@@ -29,6 +29,16 @@ export default function Nomina({ jugadores, tabla, agregar, abrirJugador, pedirF
           />
           <Boton onClick={enviar} disabled={!nombre.trim()}><Plus size={18} /></Boton>
         </div>
+
+        {jugadores.length >= 2 && comparar && (
+          <button
+            onClick={comparar}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 mt-2 font-bold text-sm active:scale-[0.99] transition"
+            style={{ background: C.tarjeta, color: C.primario, boxShadow: SOMBRA }}
+          >
+            <Swords size={16} /> Cara a Cara
+          </button>
+        )}
       </div>
 
       {!jugadores.length ? (

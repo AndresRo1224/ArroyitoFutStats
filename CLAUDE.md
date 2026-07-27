@@ -54,11 +54,22 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     (`votacionAbierta()` en util). El MVP se calcula (`mvpDePartido`), no se guarda.
   - `banners` (colección): `{ _id: jugadorId, banner: "idDiseño" }`. Solo el id de un fondo de
     `BANNERS` (tema.js); lo elige el jugador con su PIN. No es una imagen: no pesa.
-  - Los **trofeos son calculados** (`calcularTrofeos` en util), históricos: títulos actuales
-    (goleador, asistidor, mejor nota, más constante, rey del MVP) + MVP acumulado por partido.
-    Hay además un trofeo "de la vergüenza" **El Topo** (más autogoles), que solo aparece si
-    alguien tiene autogoles y se pinta en rojo (`tono: "alerta"`) en `Vitrina` y la ficha.
-    La pantalla `Vitrina` (5º tab) y la ficha los muestran.
+  - Los **trofeos son calculados** (`calcularTrofeos` en util), históricos: Bota de oro
+    (goleador), Rey de asistencias, Mejor promedio, Inoxidable (más PJ), Rey del MVP, **El Muro**
+    (más atajadas), **Rey del Hat-trick** (más partidos de 3+ goles), **Jugador del Mes** (mejor
+    nota del mes natural en curso) y **En racha** (mayor racha goleadora activa) + MVP acumulado.
+    Trofeos "de la vergüenza" en rojo (`tono: "alerta"`): **El Topo** (más autogoles) y **El
+    Fantasma** (peor asistencia, solo si <70% y el grupo jugó ≥3). Cada trofeo condicional solo
+    aparece si hay dato. Los `clave` de cada trofeo deben existir en el mapa `ICONO` de `Vitrina`
+    y en `TROFEO` de `FichaJugador` (si falta, no se pinta). La pantalla `Vitrina` (5º tab) y la
+    ficha los muestran.
+  - **Rachas** (`rachasJugador(id, partidos)` en util): racha actual de asistencia y goleadora,
+    contadas desde el partido más reciente (requiere `partidos` en orden descendente). Se ven
+    como chips en la ficha y alimentan el trofeo "En racha".
+  - **Cara a Cara** (`src/screens/CaraACara.jsx`): compara dos jugadores lado a lado (stats de
+    la tabla + MVP + racha), resalta quién gana cada categoría y declara ganador. Se abre desde
+    la Nómina (botón "Cara a Cara") o desde la ficha ("Comparar con otro", preselecciona). No
+    toca el modelo de datos.
 - **La nota de rendimiento (0-10) es calculada, no se guarda.** `notaPartido(g, a, at, ag)` en
   `src/lib/util.js` da la nota de un partido:
   `6.0 + 0.8·goles + 0.5·asistencias + 0.1·atajadas − 1.0·autogoles`, acotada a `[0, 10]`

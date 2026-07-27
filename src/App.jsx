@@ -20,6 +20,7 @@ import MostrarPin from "./screens/MostrarPin";
 import ResetPin from "./screens/ResetPin";
 import Ajustes from "./screens/Ajustes";
 import ListaPines from "./screens/ListaPines";
+import CaraACara from "./screens/CaraACara";
 
 const PESTANAS = [
   { id: "tabla", label: "Tabla", icono: Trophy },
@@ -57,6 +58,7 @@ export default function App() {
   const [votarPartido, setVotarPartido] = useState(null); // partido cuyo MVP se vota
   const [bannerJugador, setBannerJugador] = useState(null); // jugador que cambia banner
   const [resetJugador, setResetJugador] = useState(null); // jugador que resetea su PIN por correo
+  const [caraACara, setCaraACara] = useState(null); // { a? } comparación de dos jugadores
 
   const inputRespaldo = useRef(null);
   const primeraCarga = useRef(true);
@@ -350,6 +352,7 @@ export default function App() {
                 agregar={agregarJugador}
                 esAdmin={puedeEditar}
                 verPines={() => setVerPines(true)}
+                comparar={() => setCaraACara({})}
               />
             ) : tab === "partidos" ? (
               <Partidos
@@ -400,6 +403,17 @@ export default function App() {
 
         {resetJugador && (
           <ResetPin jugador={resetJugador} avisar={setAviso} onCerrar={() => setResetJugador(null)} />
+        )}
+
+        {caraACara && (
+          <CaraACara
+            jugadores={jugadores}
+            tabla={tabla}
+            partidos={partidos}
+            trofeos={trofeos}
+            inicialA={caraACara.a}
+            onCerrar={() => setCaraACara(null)}
+          />
         )}
 
         {verPines && (
@@ -461,6 +475,7 @@ export default function App() {
             pedirFoto={setSubir}
             cambiarBanner={(j) => setBannerJugador(j)}
             olvidePin={(j) => setResetJugador(j)}
+            onComparar={(id) => { setFicha(null); setCaraACara({ a: id }); }}
             regenerarPin={regenerarPin}
             renombrar={(n) => {
               const actual = jugadores.find((j) => j.id === ficha);

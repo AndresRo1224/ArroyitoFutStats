@@ -159,6 +159,25 @@ export function mvpDePartido(partido, conteo) {
   return ids.sort((x, y) => votos[y] - votos[x] || aporte(y) - aporte(x) || (x < y ? -1 : 1))[0];
 }
 
+// Rachas ACTUALES de un jugador, contadas desde el partido más reciente hacia atrás.
+// `partidos` debe venir ordenado por fecha descendente (partidos[0] = el más reciente).
+//  - asistencia: partidos recientes seguidos en los que estuvo (se corta al primero que faltó)
+//  - goleadora: entre los partidos que jugó, los más recientes seguidos en que anotó
+export function rachasJugador(id, partidos) {
+  let asistencia = 0;
+  for (const p of partidos) {
+    if (p.att.includes(id)) asistencia++;
+    else break;
+  }
+  let goleadora = 0;
+  for (const p of partidos) {
+    if (!p.att.includes(id)) continue; // solo cuentan partidos que jugó
+    if (((p.g && p.g[id]) || 0) > 0) goleadora++;
+    else break;
+  }
+  return { asistencia, goleadora };
+}
+
 // Trofeos históricos. Recibe la tabla ya calculada, los partidos y los votos
 // por partido ({ [id]: { conteo, votantes } }). Devuelve los títulos actuales,
 // el conteo de MVP por jugador y un índice por jugador para su ficha.
@@ -190,6 +209,39 @@ export function calcularTrofeos(tabla, partidos, votosPorPartido = {}) {
     { clave: "reyMvp", nombre: "Rey del MVP", detalle: "Más veces MVP", jugador: reyMvp && mapa[reyMvp[0]], valor: () => `${reyMvp ? reyMvp[1] : 0} MVP` },
   ];
 
+  // El Muro: más atajadas (para arqueros).
+  const muro = lider("atajadas");
+  if (muro) titulos.push({ clave: "muro", nombre: "El Muro 🧤", detalle: "Más atajadas", jugador: muro, valor: (t) => `${t.atajadas} atajadas` });
+
+  // Rey del Hat-trick: más partidos con 3 o más goles.
+  const hat = {};
+  partidos.forEach((p) =>
+    p.att.forEach((id) => {
+      if (mapa[id] && ((p.g && p.g[id]) || 0) >= 3) hat[id] = (hat[id] || 0) + 1;
+    })
+  );
+  const reyHat = Object.entries(hat).sort((a, b) => b[1] - a[1])[0];
+  if (reyHat) titulos.push({ clave: "hattrick", nombre: "Rey del Hat-trick", detalle: "Más partidos de 3+ goles", jugador: mapa[reyHat[0]], valor: () => `${reyHat[1]} hat-trick${reyHat[1] === 1 ? "" : "s"}` });
+
+  // Jugador del Mes: mejor nota entre los partidos del mes natural en curso.
+  const ym = isoLocal(new Date()).slice(0, 7);
+  const partidosMes = partidos.filter((p) => p.fecha && p.fecha.slice(0, 7) === ym);
+  if (partidosMes.length) {
+    const jugs = tabla.map((t) => ({ id: t.id, nombre: t.nombre }));
+    const mejorMes = calcularTabla(jugs, partidosMes)
+      .filter((t) => t.pj > 0)
+      .sort((a, b) => b.nota - a.nota || b.goles - a.goles || a.nombre.localeCompare(b.nombre))[0];
+    if (mejorMes) titulos.push({ clave: "mes", nombre: "Jugador del Mes", detalle: "Mejor nota este mes", jugador: mapa[mejorMes.id], valor: () => `${dec1(mejorMes.nota)} de nota` });
+  }
+
+  // En racha: la mayor racha goleadora ACTIVA del grupo (mínimo 2 partidos seguidos).
+  let enRacha = null;
+  tabla.forEach((t) => {
+    const r = rachasJugador(t.id, partidos).goleadora;
+    if (r >= 2 && (!enRacha || r > enRacha.r)) enRacha = { id: t.id, r };
+  });
+  if (enRacha) titulos.push({ clave: "racha", nombre: "En racha 🔥", detalle: "Racha goleadora activa", jugador: mapa[enRacha.id], valor: () => `${enRacha.r} seguidos anotando` });
+
   // Trofeo "de la vergüenza": solo aparece si de verdad alguien metió autogol.
   const topo = lider("autogoles");
   if (topo) {
@@ -201,6 +253,17 @@ export function calcularTrofeos(tabla, partidos, votosPorPartido = {}) {
       valor: (t) => `${t.autogoles} autogol${t.autogoles === 1 ? "" : "es"}`,
       tono: "alerta",
     });
+  }
+
+  // El Fantasma: el de peor asistencia. Solo si el grupo ya jugó ≥3 partidos, entre
+  // quienes al menos jugaron una vez, y solo si de verdad falta harto (<70%).
+  if (partidos.length >= 3) {
+    const fantasma = tabla
+      .filter((t) => t.pj >= 1)
+      .sort((a, b) => a.presencia - b.presencia || a.pj - b.pj || a.nombre.localeCompare(b.nombre))[0];
+    if (fantasma && fantasma.presencia < 0.7) {
+      titulos.push({ clave: "fantasma", nombre: "El Fantasma 👻", detalle: "El que más falta", jugador: mapa[fantasma.id], valor: (t) => `${Math.round(t.presencia * 100)}% asistencia`, tono: "alerta" });
+    }
   }
 
   const porJugador = {};

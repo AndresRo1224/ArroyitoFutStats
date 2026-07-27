@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Frown } from "lucide-react";
+import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Frown, Hand, Award, Star, Flame, Ghost, Swords } from "lucide-react";
 import { C, PETOS, NUM, SOMBRA, bannerCss } from "../tema";
 import { Avatar, Rotulo, Marcador } from "../components/ui";
-import { dec, dec1, fechaCorta, notaPartido } from "../lib/util";
+import { dec, dec1, fechaCorta, notaPartido, rachasJugador } from "../lib/util";
 
 const TROFEO = {
   goleador: { nombre: "Bota de oro", Ico: Trophy },
@@ -10,12 +10,17 @@ const TROFEO = {
   nota: { nombre: "Mejor promedio", Ico: Target },
   constante: { nombre: "Inoxidable", Ico: Calendar },
   reyMvp: { nombre: "Rey del MVP", Ico: Crown },
+  muro: { nombre: "El Muro", Ico: Hand },
+  hattrick: { nombre: "Hat-trick", Ico: Award },
+  mes: { nombre: "Jugador del Mes", Ico: Star },
+  racha: { nombre: "En racha", Ico: Flame },
   topo: { nombre: "El Topo", Ico: Frown, tono: "alerta" },
+  fantasma: { nombre: "El Fantasma", Ico: Ghost, tono: "alerta" },
 };
 
 export default function FichaJugador({
   jugador, stats, partidos, banner, frase, trofeos, esAdmin,
-  cerrar, renombrar, eliminar, pedirFoto, cambiarBanner, olvidePin, regenerarPin,
+  cerrar, renombrar, eliminar, pedirFoto, cambiarBanner, olvidePin, regenerarPin, onComparar,
 }) {
   const [nombre, setNombre] = useState(jugador.nombre);
   const suyos = partidos.filter((p) => p.att.includes(jugador.id)).slice(0, 8);
@@ -23,6 +28,7 @@ export default function FichaJugador({
   const misTitulos = (trofeos && trofeos.titulos) || [];
   const misMvp = (trofeos && trofeos.mvp) || 0;
   const tieneTrofeos = misTitulos.length > 0 || misMvp > 0;
+  const racha = rachasJugador(jugador.id, partidos);
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: C.fondo }}>
@@ -102,6 +108,24 @@ export default function FichaJugador({
           </div>
         )}
 
+        {/* Rachas actuales (solo si están vivas) */}
+        {(racha.goleadora >= 2 || racha.asistencia >= 3) && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {racha.goleadora >= 2 && (
+              <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: `${C.alerta}12`, boxShadow: `inset 0 0 0 1px ${C.alerta}44` }}>
+                <Flame size={14} color={C.alerta} />
+                <span className="text-xs font-bold" style={{ color: C.tinta }}>Anotó en {racha.goleadora} seguidos</span>
+              </div>
+            )}
+            {racha.asistencia >= 3 && (
+              <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: `${C.primario}12`, boxShadow: `inset 0 0 0 1px ${C.primario}44` }}>
+                <Calendar size={14} color={C.primario} />
+                <span className="text-xs font-bold" style={{ color: C.tinta }}>Vino a {racha.asistencia} seguidos</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div
           className="mt-4 rounded-2xl p-4 flex items-center justify-between"
           style={{ background: `linear-gradient(135deg, ${C.tarjeta}, ${C.primario}14)`, boxShadow: `${SOMBRA}, inset 0 0 0 1.5px ${C.primario}33` }}
@@ -170,6 +194,16 @@ export default function FichaJugador({
               <div className="text-sm font-bold" style={{ color: C.tinta }}>Generar PIN nuevo</div>
               <div className="text-xs" style={{ color: C.humo }}>Si se le olvidó el suyo para editar su perfil</div>
             </div>
+          </button>
+        )}
+
+        {onComparar && (
+          <button
+            onClick={() => onComparar(jugador.id)}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 mt-3 font-bold text-sm active:scale-[0.99] transition"
+            style={{ background: C.tarjeta, color: C.primario, boxShadow: SOMBRA }}
+          >
+            <Swords size={16} /> Comparar con otro
           </button>
         )}
 

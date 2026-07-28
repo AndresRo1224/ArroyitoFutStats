@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Trophy, Plus, Crown, Zap, Calendar, Target } from "lucide-react";
+import { Trophy, Plus, Crown, Zap, Calendar, Target, Siren } from "lucide-react";
 import { C, PETOS, NUM, ROTULO, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Boton, Marcador, Vacio } from "../components/ui";
 import { dec, dec1, nombreCorto } from "../lib/util";
@@ -144,7 +144,10 @@ export default function Tabla({ jugadores, partidos, tabla, abrirJugador, irA })
           >
             <div className="w-6 text-left" style={{ ...NUM, color: i < 3 ? C.primario : C.humo, fontSize: 12, fontWeight: 800 }}>{i + 1}</div>
             <Avatar id={t.id} nombre={t.nombre} tam={26} />
-            <div className="flex-1 text-left text-sm font-semibold truncate" style={{ color: C.tinta }}>{nombreCorto(t.nombre)}</div>
+            <div className="flex-1 min-w-0 flex items-center gap-1 text-left">
+              <span className="text-sm font-semibold truncate" style={{ color: C.tinta }}>{nombreCorto(t.nombre)}</span>
+              {t.amenazado && <Siren size={12} color={C.alerta} className="shrink-0" />}
+            </div>
             <div className="text-center" style={{ ...NUM, width: 26, color: C.humo, fontSize: 13 }}>{t.pj}</div>
             <div className="text-center" style={{ ...NUM, width: 26, color: C.tinta, fontSize: 13, fontWeight: 700 }}>{t.goles}</div>
             <div className="text-center" style={{ ...NUM, width: 26, color: C.tinta, fontSize: 13, fontWeight: 700 }}>{t.asis}</div>

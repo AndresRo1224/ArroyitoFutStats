@@ -111,7 +111,9 @@ export function sanearDatos(body) {
   const jugadores = (Array.isArray(body.jugadores) ? body.jugadores : [])
     .slice(0, LIM.jugadores)
     .filter((j) => j && idValido(j.id) && typeof j.nombre === "string" && j.nombre.trim())
-    .map((j) => ({ id: j.id, nombre: j.nombre.slice(0, LIM.nombre) }));
+    // `amenazado` es la marca "AMENAZADO POR LA FIFA": la pone y la quita el
+    // administrador a mano (por eso viaja con el jugador, no se calcula).
+    .map((j) => ({ id: j.id, nombre: j.nombre.slice(0, LIM.nombre), amenazado: !!j.amenazado }));
 
   const numMap = (o) => {
     const out = {};

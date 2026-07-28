@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Users, Plus, Camera, KeyRound, ChevronRight, Swords } from "lucide-react";
+import { Users, Plus, Camera, KeyRound, ChevronRight, Swords, Siren } from "lucide-react";
 import { C, NUM, SOMBRA } from "../tema";
 import { Avatar, Rotulo, Boton, Vacio } from "../components/ui";
 import { dec1 } from "../lib/util";
@@ -60,7 +60,10 @@ export default function Nomina({ jugadores, tabla, agregar, abrirJugador, pedirF
                   </div>
                 </button>
                 <button onClick={() => abrirJugador(j.id)} className="flex-1 text-left min-w-0 active:opacity-70">
-                  <div className="font-bold text-sm truncate" style={{ color: C.tinta }}>{j.nombre}</div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="font-bold text-sm truncate" style={{ color: C.tinta }}>{j.nombre}</div>
+                    {j.amenazado && <Siren size={13} color={C.alerta} className="shrink-0" />}
+                  </div>
                   <div className="text-xs mt-0.5" style={{ color: C.humo, ...NUM }}>
                     {t.pj} PJ · {t.goles} G · {t.asis} A
                   </div>

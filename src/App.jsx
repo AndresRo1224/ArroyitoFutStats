@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, Medal } from "lucide-react";
+import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, Medal, Siren } from "lucide-react";
 import { C, ROTULO, SOMBRA } from "./tema";
 import { FotoCtx, Boton, Rotulo } from "./components/ui";
 import { calcularTabla, calcularTrofeos, filaVacia, uid } from "./lib/util";
@@ -211,6 +211,22 @@ export default function App() {
   const trofeos = useMemo(() => calcularTrofeos(tabla, partidos, votos), [tabla, partidos, votos]);
   const statsDe = (id) => tabla.find((t) => t.id === id) || filaVacia;
   const ultimoPartido = partidos[0];
+  const amenazados = useMemo(() => jugadores.filter((j) => j.amenazado), [jugadores]);
+
+  // La marca "AMENAZADO POR LA FIFA" la pone y la quita el administrador a mano.
+  const alternarAmenazado = (id) =>
+    conPermiso("Amenazar por la FIFA", () => {
+      let puesta = false;
+      setJugadores((js) =>
+        js.map((j) => {
+          if (j.id !== id) return j;
+          puesta = !j.amenazado;
+          return { ...j, amenazado: !j.amenazado };
+        })
+      );
+      const quien = jugadores.find((j) => j.id === id);
+      setAviso(puesta ? `🚨 ${quien ? quien.nombre : "Ese"} quedó amenazado por la FIFA.` : "La FIFA retiró la amenaza.");
+    });
 
   const guardarFotoJugador = async (data, pin) => {
     const id = subir;
@@ -363,6 +379,29 @@ export default function App() {
             </button>
           </header>
 
+          {/* Aviso de la FIFA: sale en TODAS las pestañas, debajo del encabezado. */}
+          {amenazados.length > 0 && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 shrink-0"
+              style={{ background: `${C.alerta}14`, borderBottom: `1px solid ${C.alerta}33` }}
+            >
+              <Siren size={15} color={C.alerta} className="shrink-0" />
+              <div className="flex-1 min-w-0 overflow-x-auto whitespace-nowrap">
+                <span style={{ ...ROTULO, fontSize: 9, color: C.alerta }}>Amenazado por la FIFA · </span>
+                {amenazados.map((j, i) => (
+                  <button
+                    key={j.id}
+                    onClick={() => setFicha(j.id)}
+                    className="text-xs font-extrabold active:opacity-60"
+                    style={{ color: C.tinta }}
+                  >
+                    {j.nombre}{i < amenazados.length - 1 ? ", " : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <main className="flex-1 overflow-y-auto">
             {!cargado ? (
               <div className="flex items-center justify-center h-full text-sm" style={{ color: C.humo }}>Cargando el grupo…</div>
@@ -509,6 +548,7 @@ export default function App() {
             cambiarBanner={(j) => setBannerJugador(j)}
             olvidePin={(j) => setResetJugador(j)}
             onComparar={(id) => { setFicha(null); setCaraACara({ a: id }); }}
+            onAmenazar={() => alternarAmenazado(ficha)}
             regenerarPin={regenerarPin}
             renombrar={(n) => {
               const actual = jugadores.find((j) => j.id === ficha);

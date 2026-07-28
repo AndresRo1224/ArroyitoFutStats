@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Frown, Hand, Award, Star, Flame, Ghost, Swords, Medal, Rocket } from "lucide-react";
+import { X, Trash2, Camera, KeyRound, Image, Crown, Trophy, Zap, Target, Calendar, Frown, Hand, Award, Star, Flame, Ghost, Swords, Medal, Rocket, Siren } from "lucide-react";
 import { C, PETOS, NUM, SOMBRA, bannerCss } from "../tema";
 import { Avatar, Rotulo, Marcador } from "../components/ui";
 import { dec, dec1, fechaCorta, notaPartido, rachasJugador } from "../lib/util";
@@ -18,11 +18,12 @@ const TROFEO = {
   imparable: { nombre: "Imparable", Ico: Rocket },
   topo: { nombre: "El Topo", Ico: Frown, tono: "alerta" },
   fantasma: { nombre: "El Fantasma", Ico: Ghost, tono: "alerta" },
+  fifa: { nombre: "Amenazado por la FIFA", Ico: Siren, tono: "alerta" },
 };
 
 export default function FichaJugador({
   jugador, stats, partidos, banner, frase, trofeos, esAdmin,
-  cerrar, renombrar, eliminar, pedirFoto, cambiarBanner, olvidePin, regenerarPin, onComparar,
+  cerrar, renombrar, eliminar, pedirFoto, cambiarBanner, olvidePin, regenerarPin, onComparar, onAmenazar,
 }) {
   const [nombre, setNombre] = useState(jugador.nombre);
   const suyos = partidos.filter((p) => p.att.includes(jugador.id)).slice(0, 8);
@@ -85,6 +86,20 @@ export default function FichaJugador({
             <div className="text-sm mt-1 line-clamp-2" style={{ color: C.humo }}>“{frase}”</div>
           )}
         </div>
+
+        {/* La FIFA lo tiene en la mira (lo marca el administrador a mano) */}
+        {jugador.amenazado && (
+          <div
+            className="mt-4 rounded-2xl p-3 flex items-center gap-2.5"
+            style={{ background: `${C.alerta}14`, boxShadow: `inset 0 0 0 1.5px ${C.alerta}55` }}
+          >
+            <Siren size={20} color={C.alerta} className="shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="font-extrabold text-sm" style={{ color: C.alerta }}>AMENAZADO POR LA FIFA 🚨</div>
+              <div className="text-xs" style={{ color: C.humo }}>Su nivel está bajo investigación.</div>
+            </div>
+          </div>
+        )}
 
         {/* Trofeos del jugador */}
         {tieneTrofeos && (
@@ -201,6 +216,26 @@ export default function FichaJugador({
             style={{ color: C.primario }}
           >
             ¿Olvidaste tu PIN? Cámbialo por correo
+          </button>
+        )}
+
+        {esAdmin && onAmenazar && (
+          <button
+            onClick={onAmenazar}
+            className="w-full mt-3 rounded-2xl p-3 flex items-center gap-3 text-left active:scale-[0.99] transition"
+            style={tarjeta}
+          >
+            <div className="rounded-xl p-2" style={{ background: `${C.alerta}18` }}>
+              <Siren size={16} color={C.alerta} />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-bold" style={{ color: C.tinta }}>
+                {jugador.amenazado ? "Quitar la amenaza de la FIFA" : "Amenazar por la FIFA"}
+              </div>
+              <div className="text-xs" style={{ color: C.humo }}>
+                {jugador.amenazado ? "La FIFA le levanta la sanción" : "Sale en rojo en toda la app 🚨"}
+              </div>
+            </div>
           </button>
         )}
 

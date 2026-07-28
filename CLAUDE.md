@@ -30,7 +30,7 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
 // datos del grupo  → local: "canchita:datos" · nube: colección "estado" (_id "principal")
 {
   grupo: "Fútbol de los domingos",
-  jugadores: [{ id: "ab12cd3", nombre: "Juan Pérez" }],
+  jugadores: [{ id: "ab12cd3", nombre: "Juan Pérez", amenazado: false }],
   partidos: [{
     id: "xy98z",
     fecha: "2026-07-19",          // YYYY-MM-DD, siempre local
@@ -73,6 +73,13 @@ Las mismas dos "tablas" existen en local (`localStorage`) y en la nube (MongoDB)
     aparece si hay dato. Los `clave` de cada trofeo deben existir en el mapa `ICONO` de `Vitrina`
     y en `TROFEO` de `FichaJugador` (si falta, no se pinta). La pantalla `Vitrina` (5º tab) y la
     ficha los muestran.
+  - **"Amenazado por la FIFA"** (`jugador.amenazado`) es el único distintivo **manual**: lo pone
+    y lo quita el administrador desde la ficha (`onAmenazar` → `alternarAmenazado` en `App.jsx`,
+    protegido por `conPermiso`). Es una broma del grupo para quien está jugando mal. Se ve en
+    **todas** las pestañas mediante un aviso rojo bajo el encabezado de `App.jsx`, más la sirena
+    en Tabla y Nómina, la banda roja en la ficha y el "trofeo" `fifa` en la Vitrina.
+    `sanearDatos` lo conserva (ojo: ese `.map()` **descarta cualquier campo del jugador que no
+    liste explícitamente**) y `calcularTabla` lo copia a la fila para poder pintarlo.
   - **Rachas** (`rachasJugador(id, partidos)` en util): racha actual de asistencia y goleadora,
     contadas desde el partido más reciente (requiere `partidos` en orden descendente). Se ven
     como chips en la ficha y alimentan el trofeo "En racha".

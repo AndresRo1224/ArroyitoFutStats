@@ -135,7 +135,9 @@ export function equipoGanador(partido) {
 export function calcularTabla(jugadores, partidos) {
   const base = {};
   jugadores.forEach((j) => {
-    base[j.id] = { id: j.id, nombre: j.nombre, pj: 0, goles: 0, asis: 0, atajadas: 0, autogoles: 0, victorias: 0, empates: 0, derrotas: 0, sumaNotas: 0 };
+    // `amenazado` (la marca de la FIFA) viaja con la fila para que la tabla y la
+    // nómina puedan pintarla sin volver a buscar al jugador.
+    base[j.id] = { id: j.id, nombre: j.nombre, amenazado: !!j.amenazado, pj: 0, goles: 0, asis: 0, atajadas: 0, autogoles: 0, victorias: 0, empates: 0, derrotas: 0, sumaNotas: 0 };
   });
   partidos.forEach((p) =>
     p.att.forEach((id) => {
@@ -313,6 +315,21 @@ export function calcularTrofeos(tabla, partidos, votosPorPartido = {}) {
       detalle: "Más autogoles",
       jugador: topo,
       valor: (t) => `${t.autogoles} autogol${t.autogoles === 1 ? "" : "es"}`,
+      tono: "alerta",
+    });
+  }
+
+  // Amenazado por la FIFA: NO se calcula, lo marca el administrador a mano. Si hay
+  // varios, el trofeo lo encabeza el de peor nota (y los demás salen en el aviso).
+  const amenazados = tabla.filter((t) => t.amenazado);
+  if (amenazados.length) {
+    const peor = amenazados.slice().sort((a, b) => a.nota - b.nota || a.nombre.localeCompare(b.nombre))[0];
+    titulos.push({
+      clave: "fifa",
+      nombre: "Amenazado por la FIFA 🚨",
+      detalle: amenazados.length > 1 ? `${amenazados.length} bajo investigación` : "Su nivel está bajo investigación",
+      jugador: peor,
+      valor: () => (amenazados.length > 1 ? `y ${amenazados.length - 1} más` : "en la mira"),
       tono: "alerta",
     });
   }

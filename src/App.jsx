@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Trophy, Calendar, RotateCw, Users, Settings, Cloud, CloudOff, Medal, Siren } from "lucide-react";
-import { C, ROTULO, SOMBRA } from "./tema";
-import { FotoCtx, Boton, Rotulo } from "./components/ui";
-import { calcularTabla, calcularTrofeos, filaVacia, uid } from "./lib/util";
+import { C, NUM, ROTULO, SOMBRA } from "./tema";
+import { FotoCtx, Boton, Rotulo, Avatar } from "./components/ui";
+import { calcularTabla, calcularTrofeos, filaVacia, nombreCorto, uid } from "./lib/util";
 import { K_DATOS, K_FOTOS, K_BANNERS, K_FRASES, K_SORTEO, leerJSON, guardarJSON, descargarRespaldo, leerRespaldo } from "./lib/almacenamiento";
 import * as nube from "./lib/nube";
 import Tabla from "./screens/Tabla";
@@ -379,26 +379,35 @@ export default function App() {
             </button>
           </header>
 
-          {/* Aviso de la FIFA: sale en TODAS las pestañas, debajo del encabezado. */}
+          {/* Aviso de la FIFA: sale en TODAS las pestañas, con la misma pinta de
+              tarjeta que los trofeos de la Vitrina. Uno por amenazado. */}
           {amenazados.length > 0 && (
-            <div
-              className="flex items-center gap-2 px-3 py-2 shrink-0"
-              style={{ background: `${C.alerta}14`, borderBottom: `1px solid ${C.alerta}33` }}
-            >
-              <Siren size={15} color={C.alerta} className="shrink-0" />
-              <div className="flex-1 min-w-0 overflow-x-auto whitespace-nowrap">
-                <span style={{ ...ROTULO, fontSize: 9, color: C.alerta }}>Amenazado por la FIFA · </span>
-                {amenazados.map((j, i) => (
-                  <button
-                    key={j.id}
-                    onClick={() => setFicha(j.id)}
-                    className="text-xs font-extrabold active:opacity-60"
-                    style={{ color: C.tinta }}
-                  >
-                    {j.nombre}{i < amenazados.length - 1 ? ", " : ""}
-                  </button>
-                ))}
-              </div>
+            <div className="px-4 pt-3 space-y-2 shrink-0 max-h-[40vh] overflow-y-auto">
+              {amenazados.map((j) => (
+                <button
+                  key={j.id}
+                  onClick={() => setFicha(j.id)}
+                  className="w-full rounded-2xl p-3.5 flex items-center gap-3 text-left active:scale-[0.99] transition"
+                  style={{ background: C.tarjeta, boxShadow: SOMBRA }}
+                >
+                  <div className="rounded-xl p-2.5 shrink-0" style={{ background: `${C.alerta}18` }}>
+                    <Siren size={20} color={C.alerta} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-extrabold text-sm" style={{ color: C.tinta }}>Amenazado por la FIFA 🚨</div>
+                    <div className="leading-tight" style={{ ...ROTULO, fontSize: 9 }}>Su nivel está bajo investigación</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right">
+                      <div className="text-sm font-bold truncate" style={{ color: C.tinta, maxWidth: 96 }}>
+                        {nombreCorto(j.nombre)}
+                      </div>
+                      <div style={{ ...NUM, color: C.alerta, fontSize: 11, fontWeight: 700 }}>en la mira</div>
+                    </div>
+                    <Avatar id={j.id} nombre={j.nombre} tam={40} borde={C.alerta} />
+                  </div>
+                </button>
+              ))}
             </div>
           )}
 
